@@ -1,5 +1,6 @@
 import datetime
 import time
+from typing import Tuple
 
 import twitter
 
@@ -57,26 +58,25 @@ class Tweet(metaclass=SingletonMeta):
     def get_followers(self,
                       user_id,
                       cursor=-1,
-                      total_count=1000,
+                      count=1000,
                       skip_status=True,
-                      include_user_entities=False):
-        return self.api.GetFollowers(
+                      include_user_entities=False) -> Tuple[int, int, list]:
+        return self.api.GetFollowersPaged(
             user_id=user_id,
             cursor=cursor,
-            count=total_count,
-            total_count=total_count,
+            count=count,
             skip_status=skip_status,
             include_user_entities=include_user_entities)
 
     def get_following(self,
                       user_id,
                       cursor=-1,
-                      total_count=1000,
+                      count=1000,
                       skip_status=True,
-                      include_user_entities=False):
-        return self.api.GetFriends(user_id=user_id,
-                                   cursor=cursor,
-                                   count=total_count,
-                                   total_count=total_count,
-                                   skip_status=skip_status,
-                                   include_user_entities=include_user_entities)
+                      include_user_entities=False) -> Tuple[int, int, list]:
+        return self.api.GetFriendsPaged(
+            user_id=user_id,
+            cursor=cursor,
+            count=count,
+            skip_status=skip_status,
+            include_user_entities=include_user_entities)
