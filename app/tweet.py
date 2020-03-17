@@ -39,10 +39,11 @@ class Tweet(metaclass=SingletonMeta):
 
     @staticmethod
     def is_junior_wumao(user: twitter.models.User):
-        if user.followers_count <= 5:
+        if user.followers_count <= 5 and not user.protected:
             return True
         elif Tweet.parse_date(user.created_at) >= datetime.date(
-                2020, 1, 1) and user.followers_count <= 10:
+                2020, 1,
+                1) and user.followers_count <= 10 and not user.protected:
             return True
         else:
             return False
