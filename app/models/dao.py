@@ -1,9 +1,24 @@
 from functools import wraps
 
-from app.models.base import session_factory
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.models.base import Base
 from app.models.tables import Tweeter
+from config import Config
 
 __all__ = ['Dao']
+
+# Let's also configure it to echo everything it does to the screen.
+engine = create_engine('sqlite:///{0}'.format(Config.APP_DB), echo=True)
+
+# use session_factory() to get a new Session
+_SessionFactory = sessionmaker(bind=engine)
+
+
+def session_factory():
+    Base.metadata.create_all(engine)
+    return _SessionFactory()
 
 
 def _commit(fn):
@@ -25,7 +40,7 @@ class SingletonMeta(type):
 
 
 class Dao(metaclass=SingletonMeta):
-    __slots__ = ['session']
+    __slots__ = ['engine', 'session']
 
     def __init__(self, new: bool = False):
         if new:
