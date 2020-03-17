@@ -48,18 +48,36 @@ def user_to_base_tweeter(user: twitter.User):
     return BaseTweeter(user.id)
 
 
-def save_init_wumao():
+@_sleep
+def _save_init_wumao(dao, tweet, cursor, count):
+    print("start saving wumao from cursor:", cursor)
+    next_cursor, old_cursor, seq = tweet.get_followers(
+        user_id=Config.TWEET_ENTRY_USER_ID, cursor=cursor, count=count)
+    print("#seq:", len(seq))
+    wumaos = [u for u in seq if Tweet.is_junior_wumao(u)]
+    new_wumaos = [
+        u for u in wumaos if dao.lookup_tweeter_user_id(u.id) is None
+    ]
+    print("#Wumao:", len(wumaos))
+    print("#New Wumao:", len(new_wumaos))
+
+    if new_wumaos:
+        tweeter_wumao = [user_to_tweeter(u) for u in new_wumaos]
+        base_tweeter_wumao = [user_to_base_tweeter(u) for u in new_wumaos]
+        dao.bulk_save(tweeter_wumao)
+        dao.bulk_save(base_tweeter_wumao)
+
+    if next_cursor == 0:
+        print("wumao saving completed")
+        return
+    else:
+        return _save_init_wumao(dao, tweet, next_cursor, count)
+
+
+def save_init_wumao(init_cursor, n):
     dao = Dao(new=False)
     tweet = Tweet()
-    wumaos = [
-        u for u in tweet.get_followers(user_id=Config.TWEET_ENTRY_USER_ID)
-        if Tweet.is_junior_wumao(u)
-    ]
-    tweeter_wumao = [user_to_tweeter(u) for u in wumaos]
-    base_tweeter_wumao = [user_to_base_tweeter(u) for u in wumaos]
-
-    dao.bulk_save(tweeter_wumao)
-    dao.bulk_save(base_tweeter_wumao)
+    return _save_init_wumao(dao, tweet, init_cursor, n)
 
 
 def wumao_from_base_top(dao: Dao, tweet: Tweet):
