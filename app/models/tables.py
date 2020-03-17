@@ -1,5 +1,6 @@
-from ..models.base import Base
 import sqlalchemy as sa
+
+from app.models.base import Base
 
 
 class Tweeter(Base):

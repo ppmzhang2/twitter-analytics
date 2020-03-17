@@ -40,7 +40,7 @@ class SingletonMeta(type):
 
 
 class Dao(metaclass=SingletonMeta):
-    __slots__ = ['engine', 'session']
+    __slots__ = ['session']
 
     def __init__(self, new: bool = False):
         if new:
