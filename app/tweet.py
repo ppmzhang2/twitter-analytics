@@ -1,5 +1,9 @@
-from config import Config
+import datetime
+import time
+
 import twitter
+
+from config import Config
 
 __all__ = ['Tweet']
 
@@ -21,6 +25,16 @@ class Tweet(metaclass=SingletonMeta):
                                consumer_secret=Config.CONSUMER_SECRET,
                                access_token_key=Config.ACCESS_TOKEN,
                                access_token_secret=Config.ACCESS_TOKEN_SECRET)
+
+    @staticmethod
+    def parse_date(timestamp):
+        """parse tweet "created_at" timestamp string
+
+        :param timestamp: "created_at" format string
+        :return: datetime.date object
+        """
+        ts = time.strptime(timestamp, '%a %b %d %H:%M:%S +0000 %Y')
+        return datetime.date(ts.tm_year, ts.tm_mon, ts.tm_mday)
 
     def get_followers(self,
                       user_id,
