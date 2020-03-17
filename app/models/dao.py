@@ -56,19 +56,19 @@ class Dao(metaclass=SingletonMeta):
         """
         self.session.bulk_save_objects(objects)
 
-    def lookup_tweeter_user_id(self, user_id):
+    def lookup_tweeter_user_id(self, user_id: int) -> Tweeter:
         return self.session.query(Tweeter).filter(
             Tweeter.user_id == user_id).first()
 
     @_commit
-    def delete_tweeter_user_id(self, user_id):
+    def delete_tweeter_user_id(self, user_id: int) -> int:
         return self.session.query(Tweeter).filter(
             Tweeter.user_id == user_id).delete()
 
-    def first_base_tweeter(self):
+    def first_base_tweeter(self) -> BaseTweeter:
         return self.session.query(BaseTweeter).first()
 
     @_commit
-    def delete_base_tweeter_user_id(self, user_id):
+    def delete_base_tweeter_user_id(self, user_id: int) -> int:
         return self.session.query(BaseTweeter).filter(
             BaseTweeter.user_id == user_id).delete()
