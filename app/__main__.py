@@ -6,9 +6,9 @@ from app.tweet import Tweet
 from app.models.tables import Tweeter, BaseTweeter
 import twitter
 
-# People's Daily Chinese
+# "PDChinese", People's Daily Chinese
 TWEET_ENTRY_USER_ID_1 = 1531801543
-# HuXijin_GT
+# "HuXijin_GT"
 TWEET_ENTRY_USER_ID_2 = 1531801543
 
 
@@ -20,7 +20,10 @@ def _sleep(fn):
                 res = fn(*args, **kwargs)
                 break
             except twitter.error.TwitterError as e:
-                if e.message[0]['code'] == 88:
+                if e.message == [{
+                        'message': 'Rate limit exceeded',
+                        'code': 88
+                }]:
                     # sleep 6 min if exceeds limit
                     print("sleeping ...")
                     sleep(360)
