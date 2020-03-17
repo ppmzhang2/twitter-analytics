@@ -1,3 +1,5 @@
+from datetime import date
+
 import sqlalchemy as sa
 
 from app.models.base import Base
@@ -16,8 +18,8 @@ class Tweeter(Base):
     followers = sa.Column(sa.Integer)
     following = sa.Column(sa.Integer)
 
-    def __init__(self, user_id, screen_name, name, created_at, followers,
-                 following):
+    def __init__(self, user_id: int, screen_name: str, name: str,
+                 created_at: date, followers: int, following: int):
         self.user_id = user_id
         self.screen_name = screen_name
         self.name = name
@@ -34,5 +36,5 @@ class BaseTweeter(Base):
     id = sa.Column(sa.Integer, primary_key=True)
     user_id = sa.Column(sa.BigInteger)
 
-    def __init__(self, user_id):
+    def __init__(self, user_id: int):
         self.user_id = user_id
