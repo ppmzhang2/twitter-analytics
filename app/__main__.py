@@ -4,8 +4,12 @@ from time import sleep
 from app.models.dao import Dao
 from app.tweet import Tweet
 from app.models.tables import Tweeter, BaseTweeter
-from config import Config
 import twitter
+
+# People's Daily Chinese
+TWEET_ENTRY_USER_ID_1 = 1531801543
+# HuXijin_GT
+TWEET_ENTRY_USER_ID_2 = 1531801543
 
 
 def _sleep(fn):
@@ -49,10 +53,11 @@ def user_to_base_tweeter(user: twitter.User):
 
 
 @_sleep
-def _save_init_wumao(dao, tweet, cursor, count):
+def _save_init_wumao(dao, tweet, cursor, user_id, count):
     print("start saving wumao from cursor:", cursor)
-    next_cursor, old_cursor, seq = tweet.get_followers(
-        user_id=Config.TWEET_ENTRY_USER_ID, cursor=cursor, count=count)
+    next_cursor, old_cursor, seq = tweet.get_followers(user_id=user_id,
+                                                       cursor=cursor,
+                                                       count=count)
     print("#seq:", len(seq))
     wumaos = [u for u in seq if Tweet.is_junior_wumao(u)]
     new_wumaos = [
@@ -71,13 +76,13 @@ def _save_init_wumao(dao, tweet, cursor, count):
         print("wumao saving completed")
         return
     else:
-        return _save_init_wumao(dao, tweet, next_cursor, count)
+        return _save_init_wumao(dao, tweet, next_cursor, user_id, count)
 
 
-def save_init_wumao(init_cursor, n):
+def save_init_wumao(init_cursor, user_id, n):
     dao = Dao(new=False)
     tweet = Tweet()
-    return _save_init_wumao(dao, tweet, init_cursor, n)
+    return _save_init_wumao(dao, tweet, init_cursor, user_id, n)
 
 
 def wumao_from_base_top(dao: Dao, tweet: Tweet):
