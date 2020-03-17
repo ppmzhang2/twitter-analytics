@@ -53,12 +53,13 @@ class Tweet(metaclass=SingletonMeta):
                       total_count=1000,
                       skip_status=True,
                       include_user_entities=False):
-        self.api.GetFollowers(user_id=user_id,
-                              cursor=cursor,
-                              count=total_count,
-                              total_count=total_count,
-                              skip_status=skip_status,
-                              include_user_entities=include_user_entities)
+        return self.api.GetFollowers(
+            user_id=user_id,
+            cursor=cursor,
+            count=total_count,
+            total_count=total_count,
+            skip_status=skip_status,
+            include_user_entities=include_user_entities)
 
     def get_following(self,
                       user_id,
@@ -66,9 +67,9 @@ class Tweet(metaclass=SingletonMeta):
                       total_count=1000,
                       skip_status=True,
                       include_user_entities=False):
-        self.api.GetFriends(user_id=user_id,
-                            cursor=cursor,
-                            count=total_count,
-                            total_count=total_count,
-                            skip_status=skip_status,
-                            include_user_entities=include_user_entities)
+        return self.api.GetFriends(user_id=user_id,
+                                   cursor=cursor,
+                                   count=total_count,
+                                   total_count=total_count,
+                                   skip_status=skip_status,
+                                   include_user_entities=include_user_entities)
