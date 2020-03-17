@@ -11,4 +11,6 @@ class Config(object):
     ACCESS_TOKEN_SECRET = ''
     # path
     DB_DIR = ''.join([basedir, '/db'])
-    APP_DB = ''.join([DB_DIR, 'app.db'])
+    APP_DB = ''.join([DB_DIR, '/app.db'])
+    # Tweet related
+    TWEET_ENTRY_USER_ID = 1531801543
