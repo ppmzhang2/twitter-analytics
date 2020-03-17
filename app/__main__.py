@@ -1,3 +1,4 @@
+from functools import wraps
 from time import sleep
 
 from app.models.dao import Dao
@@ -5,6 +6,26 @@ from app.tweet import Tweet
 from app.models.tables import Tweeter, BaseTweeter
 from config import Config
 import twitter
+
+
+def _sleep(fn):
+    @wraps(fn)
+    def helper(*args, **kwargs):
+        while True:
+            try:
+                res = fn(*args, **kwargs)
+                break
+            except twitter.error.TwitterError as e:
+                if e.message[0]['code'] == 88:
+                    # sleep 6 min if exceeds limit
+                    print("sleeping ...")
+                    sleep(360)
+                else:
+                    # else raise error
+                    raise e
+        return res
+
+    return helper
 
 
 def user_to_tweeter(user: twitter.models.User):
