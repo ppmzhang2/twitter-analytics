@@ -12,3 +12,5 @@ class Config(object):
     # path
     DB_DIR = ''.join([basedir, '/db'])
     APP_DB = ''.join([DB_DIR, '/app.db'])
+    # Tweet related
+    TWEET_ENTRY_USER_ID = 141627220
