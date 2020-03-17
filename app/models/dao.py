@@ -24,8 +24,9 @@ def session_factory():
 def _commit(fn):
     @wraps(fn)
     def helper(*args, **kwargs):
-        fn(*args, **kwargs)
+        res = fn(*args, **kwargs)
         args[0].session.commit()
+        return res
 
     return helper
 
