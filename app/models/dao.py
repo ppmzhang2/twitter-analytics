@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
-from app.models.tables import Tweeter
+from app.models.tables import Tweeter, BaseTweeter
 from config import Config
 
 __all__ = ['Dao']
@@ -64,3 +64,11 @@ class Dao(metaclass=SingletonMeta):
     def delete_tweeter_user_id(self, user_id):
         return self.session.query(Tweeter).filter(
             Tweeter.user_id == user_id).delete()
+
+    def first_base_tweeter(self):
+        return self.session.query(BaseTweeter).first()
+
+    @_commit
+    def delete_base_tweeter_user_id(self, user_id):
+        return self.session.query(BaseTweeter).filter(
+            BaseTweeter.user_id == user_id).delete()
