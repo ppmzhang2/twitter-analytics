@@ -148,8 +148,8 @@ class Saver(metaclass=SingletonMeta):
             user_id = zero_user.user_id
             print("potential wumao:", user_id)
             related = [
-                u for u in self.tweet.get_following_paged(user_id=user_id)
-            ] + [u for u in self.tweet.get_followers_paged(user_id=user_id)]
+                u for u in self.tweet.get_following(user_id=user_id)
+            ] + [u for u in self.tweet.get_followers(user_id=user_id)]
             wumaos = [u for u in related if self.tweet.is_junior_wumao(u)]
             unique_wumaos = [
                 u for u in wumaos
