@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
-from app.models.tables import Tweeter, BaseTweeter
+from app.models.tables import Tweeter, BaseTweeter, Cursor
 from config import Config
 
 __all__ = ['Dao']
@@ -49,7 +49,7 @@ class Dao(metaclass=SingletonMeta):
         self.session = session_factory()
 
     @_commit
-    def bulk_save(self, objects):
+    def bulk_save(self, objects) -> None:
         """Perform a bulk save of the given sequence of objects
 
         :param objects: a sequence of mapped object instances
@@ -63,6 +63,11 @@ class Dao(metaclass=SingletonMeta):
 
     @_commit
     def delete_tweeter_user_id(self, user_id: int) -> int:
+        """delete from 'tweeter' records with specific user ID
+
+        :param user_id: twitter account user ID
+        :return: deleted number of records
+        """
         return self.session.query(Tweeter).filter(
             Tweeter.user_id == user_id).delete()
 
@@ -73,3 +78,19 @@ class Dao(metaclass=SingletonMeta):
     def delete_base_tweeter_user_id(self, user_id: int) -> int:
         return self.session.query(BaseTweeter).filter(
             BaseTweeter.user_id == user_id).delete()
+
+    def lookup_cursor(self, cur: int) -> Cursor:
+        return self.session.query(Cursor).filter(Cursor.num == cur).first()
+
+    @_commit
+    def add_cursor(self, cur: int) -> None:
+        return self.session.add(Cursor(cur))
+
+    @_commit
+    def delete_cursor(self, cur: int) -> int:
+        """delete from 'cursor' records with specific cursor number
+
+        :param cur: cursor number
+        :return: deleted number of records
+        """
+        return self.session.query(Cursor).filter(Cursor.num == cur).delete()

@@ -38,3 +38,15 @@ class BaseTweeter(Base):
 
     def __init__(self, user_id: int):
         self.user_id = user_id
+
+
+class Cursor(Base):
+    """next cursor from paged search
+    """
+    __tablename__ = 'cursor'
+
+    id = sa.Column(sa.Integer, primary_key=True)
+    num = sa.Column(sa.BigInteger)
+
+    def __init__(self, cursor: int):
+        self.num = cursor
