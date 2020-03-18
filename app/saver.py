@@ -109,6 +109,24 @@ class Saver(metaclass=SingletonMeta):
         else:
             return self.init_wumao(user_id, next_cursor, count)
 
+    def init_pd_wumao(self, cursor):
+        """save potential wumao from People's Daily followers,
+        refer to Saver.init_wumao
+
+        :param cursor: cursor of Saver.init_wumao, default -1
+        :return:
+        """
+        return self.init_wumao(self.ENTRY_USER_ID_1, cursor)
+
+    def init_hxj_wumao(self, cursor):
+        """save potential wumao from Hu Xijin followers,
+        refer to Saver.init_wumao
+
+        :param cursor: cursor of Saver.init_wumao, default -1
+        :return:
+        """
+        return self.init_wumao(self.ENTRY_USER_ID_2, cursor)
+
     @_sleep
     def validate_wumao(self):
         """validate wumao tweeter by checking if its followers or friends are
