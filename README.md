@@ -1,27 +1,23 @@
 # Twitter Wumao Analysis
 
-## Confirmed Wumao
+## Find Newly Registered Wumao Twitter Accounts
 
-* 'zlj517', 141627220
-* 'yihang16447142'
-* 'ger6991989'
-* 'markochen'
-* 'lxev6'
+Criteria:
 
-## Confirmed Wumao Tweets
+* registered after 2020
+* very active: statuses & liked tweets more than 500
+* with less than 30 followers
+* not protected
+* accounts connected with each other by following
 
-* https://twitter.com/zlj517/status/1238113459234934785
-* https://twitter.com/zlj517/status/1238111898828066823
+Search steps:
 
-## Find Junior Wumaos
+* initialize wumao list from followers of "grand external propaganda (Dawaixuan)" accounts
+* check from potential wumao list each account's friends and followers, and keep those accounts with friends or followers in the list
 
-* Main criteria: registered after 2020 with less than 20 followers, or less than 10 followers
-* Initial list: followers of Zhao Lijian the liar speaker
-* Recursion: followers of junior wumaos with the main criteria
+## Wumao Behavior Analysis
 
-## Find Hidden Wumaos
-
-* most likes from junior ones
+TBD
 
 ## Reference
 
