@@ -1,6 +1,7 @@
 from functools import wraps
 from time import sleep
 
+import requests
 import twitter
 
 from app.models.dao import Dao
@@ -17,13 +18,18 @@ def _sleep(fn):
             try:
                 res = fn(*args, **kwargs)
                 break
-            except twitter.error.TwitterError as e:
-                if e.message == [{
+            except (twitter.error.TwitterError,
+                    requests.exceptions.ConnectionError) as e:
+                if isinstance(e, requests.exceptions.ConnectionError):
+                    # sleep 5 min if connection reset by peer
+                    print("connection error, sleep...")
+                    sleep(300)
+                elif e.message == [{
                         'message': 'Rate limit exceeded',
                         'code': 88
                 }]:
                     # sleep 6 min if exceeds limit
-                    print("sleeping ...")
+                    print("exceeds rate limit, sleep...")
                     sleep(360)
                 else:
                     # else raise error
