@@ -1,125 +1,53 @@
-from functools import wraps
-from time import sleep
+import sys
 
-from app.models.dao import Dao
-from app.tweet import Tweet
-from app.models.tables import Tweeter, BaseTweeter
-from config import Config
-import twitter
+from app.saver import Saver
 
+args = sys.argv[1:]
 
-def _sleep(fn):
-    @wraps(fn)
-    def helper(*args, **kwargs):
-        while True:
-            try:
-                res = fn(*args, **kwargs)
-                break
-            except twitter.error.TwitterError as e:
-                if e.message[0]['code'] == 88:
-                    # sleep 6 min if exceeds limit
-                    print("sleeping ...")
-                    sleep(360)
-                else:
-                    # else raise error
-                    raise e
-        return res
-
-    return helper
+funcs = {
+    'save_pd': (1, Saver, Saver.init_pd_wumao),
+    'save_hxj': (1, Saver, Saver.init_hxj_wumao),
+    'validate': (0, Saver, Saver.validate_wumao)
+}
 
 
-def user_to_tweeter(user: twitter.models.User):
-    """convert a twitter.User instance to a Tweeter ORM object
+def request():
+    try:
+        return args[0]
+    except IndexError:
+        return None
 
-    :param user: a twitter.User instance
-    :return: a Tweeter object
+
+def arg1():
+    """get the 1sr argument to requested function
+
+    :return:
     """
-    return Tweeter(user.id, user.screen_name, user.name,
-                   Tweet.parse_date(user.created_at), user.followers_count,
-                   user.friends_count)
+    try:
+        return int(args[1])
+    except (IndexError, ValueError):
+        return -1
 
 
-def user_to_base_tweeter(user: twitter.User):
-    """convert a twitter.User instance to a BaseTweeter ORM object
+def main():
+    if request() is None:
+        raise TypeError('expect at least one input')
 
-    :param user: a twitter.User instance
-    :return: a Tweeter object
-    """
-    return BaseTweeter(user.id)
+    n_args, cls, func = funcs.get(request(), (None, None, None))
 
+    if func is None:
+        raise TypeError('input request is not valid, accept only {}'.format(
+            list(funcs.keys())))
 
-@_sleep
-def _save_init_wumao(dao, tweet, cursor, count):
-    print("start saving wumao from cursor:", cursor)
-    next_cursor, old_cursor, seq = tweet.get_followers(
-        user_id=Config.TWEET_ENTRY_USER_ID, cursor=cursor, count=count)
-    print("#seq:", len(seq))
-    wumaos = [u for u in seq if Tweet.is_junior_wumao(u)]
-    new_wumaos = [
-        u for u in wumaos if dao.lookup_tweeter_user_id(u.id) is None
-    ]
-    print("#Wumao:", len(wumaos))
-    print("#New Wumao:", len(new_wumaos))
-
-    if new_wumaos:
-        tweeter_wumao = [user_to_tweeter(u) for u in new_wumaos]
-        base_tweeter_wumao = [user_to_base_tweeter(u) for u in new_wumaos]
-        dao.bulk_save(tweeter_wumao)
-        dao.bulk_save(base_tweeter_wumao)
-
-    if next_cursor == 0:
-        print("wumao saving completed")
-        return
+    if n_args == 0:
+        instance = cls()
+        func(instance)
+    elif n_args == 1:
+        instance = cls()
+        func(instance, arg1())
     else:
-        return _save_init_wumao(dao, tweet, next_cursor, count)
-
-
-def save_init_wumao(init_cursor, n):
-    dao = Dao(new=False)
-    tweet = Tweet()
-    return _save_init_wumao(dao, tweet, init_cursor, n)
-
-
-def wumao_from_base_top(dao: Dao, tweet: Tweet):
-    user_id = dao.first_base_tweeter().user_id
-    print("potential wumao:", user_id)
-    tweeters = [u for u in tweet.get_following(user_id=user_id)
-                ] + [u for u in tweet.get_followers(user_id=user_id)]
-    wumaos = [u for u in tweeters if tweet.is_junior_wumao(u)]
-    unique_wumaos = [
-        u for u in wumaos if dao.lookup_tweeter_user_id(u.id) is None
-    ]
-    if not wumaos:
-        print("NOT wumao")
-        dao.delete_tweeter_user_id(user_id)
-        dao.delete_base_tweeter_user_id(user_id)
-    elif not unique_wumaos:
-        print("no additional wumao")
-        dao.delete_base_tweeter_user_id(user_id)
-    else:
-        print("inserting new wumaos:", unique_wumaos)
-        tweeter_wumao = [user_to_tweeter(u) for u in unique_wumaos]
-        base_tweeter_wumao = [user_to_base_tweeter(u) for u in unique_wumaos]
-        dao.bulk_save(tweeter_wumao)
-        dao.bulk_save(base_tweeter_wumao)
-        dao.delete_base_tweeter_user_id(user_id)
-
-
-def wumao_loop():
-    d = Dao(new=False)
-    t = Tweet()
-    while True:
-        try:
-            wumao_from_base_top(d, t)
-        except twitter.error.TwitterError as e:
-            if e.message[0]['code'] == 88:
-                # sleep 6 min if exceeds limit
-                sleep(360)
-            else:
-                # else raise error
-                raise e
+        raise TypeError('input error')
 
 
 if __name__ == '__main__':
-    # save_init_wumao()
-    wumao_loop()
+    main()
