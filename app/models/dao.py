@@ -79,31 +79,38 @@ class Dao(metaclass=SingletonMeta):
         return self.session.query(BaseTweeter).filter(
             BaseTweeter.user_id == user_id).delete()
 
-    def lookup_track(self, name: str, method: str) -> Track:
+    def lookup_track(self, user_id: int, method: str) -> Track:
         return self.session.query(Track).filter(
-            Track.screen_name == name, Track.method == method).first()
+            Track.user_id == user_id, Track.method == method).first()
 
     @_commit
-    def delete_track(self, name: str, method: str) -> int:
+    def delete_track(self, user_id: int, method: str) -> int:
         """delete from 'track' records with specific screen name and paged
         search method
 
-        :param name: twitter account screen name
+        :param user_id: twitter account ID
         :param method: search function name
         :return: deleted number of records
         """
         return self.session.query(Track).filter(
-            Track.screen_name == name, Track.method == method).delete()
+            Track.user_id == user_id, Track.method == method).delete()
 
     @_commit
-    def update_track(self, name: str, method: str, cur: int) -> None:
+    def add_track(self, user_id: int, method: str, cur: int) -> None:
+        return self.session.add(Track(user_id, method, cur))
+
+    @_commit
+    def update_track(self, user_id: int, method: str, cur: int) -> None:
         """update 'track' with latest cursor
 
-        :param name: twitter account screen name
+        :param user_id: twitter account ID
         :param method: search function name
         :param cur: cursor number
         :return:
         """
-        self.session.query(Track).filter(Track.screen_name == name,
-                                         Track.method == method).delete()
-        self.session.add(Track(name, method, cur))
+        qry = self.session.query(Track).filter(Track.user_id == user_id,
+                                               Track.method == method)
+        if qry.first() is None:
+            self.session.add(Track(user_id, method, cur))
+        else:
+            qry.update({Track.cursor: cur})
