@@ -20,6 +20,12 @@ class TestModel(unittest.TestCase):
         btw1 = BaseTweeter(id1)
         track1 = Track(user_id_1, method_1, cursor_1)
         dao = Dao(new=False)
+        # first delete with no data in DB
+        dao.delete_tweeter_user_id(id1)
+        dao.delete_tweeter_user_id(id2)
+        dao.delete_base_tweeter_user_id(id1)
+        dao.delete_track(user_id_1, method_1)
+        dao.delete_track(user_id_2, method_2)
         # bulk save
         dao.bulk_save([tw1, tw2])
         dao.bulk_save([btw1])
@@ -41,7 +47,7 @@ class TestModel(unittest.TestCase):
             dao.lookup_track(user_id_1, method_1).cursor, cursor_1)
         self.assertEqual(
             dao.lookup_track(user_id_2, method_2).cursor, cursor_2)
-        # delete
+        # delete again
         dao.delete_tweeter_user_id(id1)
         dao.delete_tweeter_user_id(id2)
         dao.delete_base_tweeter_user_id(id1)
