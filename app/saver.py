@@ -50,12 +50,6 @@ class SingletonMeta(type):
 
 
 class Saver(metaclass=SingletonMeta):
-    # entry point users with mass of wumaos
-    # 1. "PDChinese", People's Daily Chinese
-    # 2. "HuXijin_GT"
-    ENTRY_USER_ID_1 = 1531801543
-    ENTRY_USER_ID_2 = 1531801543
-
     __slots__ = ['dao', 'tweet']
 
     def __init__(self):
@@ -101,17 +95,24 @@ class Saver(metaclass=SingletonMeta):
         return BaseTweeter(user.id)
 
     @_sleep
-    def init_wumao(self, user_id, cursor=-1, count=200):
+    def init_wumao(self, user_id: int):
         """save potential wumao users by searching a user's followers
 
         :param user_id: twitter user whose followers will be searched
-        :param cursor: cursor of tweet.get_followers, default -1
-        :param count: count of tweet.get_followers, default 200
         :return:
         """
+        # use maximum count per page
+        count = 200
+        paged_method = self.tweet.get_followers_paged
+        last_search = self.dao.lookup_track(user_id, paged_method.__name__)
+        if not last_search:
+            cursor = -1
+        else:
+            cursor = last_search.cursor
         print("start saving wumao from cursor:", cursor)
-        next_cursor, old_cursor, seq = self.tweet.get_followers_paged(
-            user_id=user_id, cursor=cursor, count=count)
+        next_cursor, old_cursor, seq = paged_method(user_id=user_id,
+                                                    cursor=cursor,
+                                                    count=count)
         print("#seq:", len(seq))
         wumaos = [u for u in seq if self._is_junior_wumao(u)]
         new_wumaos = [
@@ -132,25 +133,8 @@ class Saver(metaclass=SingletonMeta):
             print("wumao saving completed")
             return
         else:
-            return self.init_wumao(user_id, next_cursor, count)
-
-    def init_pd_wumao(self, cursor):
-        """save potential wumao from People's Daily followers,
-        refer to Saver.init_wumao
-
-        :param cursor: cursor of Saver.init_wumao, default -1
-        :return:
-        """
-        return self.init_wumao(self.ENTRY_USER_ID_1, cursor)
-
-    def init_hxj_wumao(self, cursor):
-        """save potential wumao from Hu Xijin followers,
-        refer to Saver.init_wumao
-
-        :param cursor: cursor of Saver.init_wumao, default -1
-        :return:
-        """
-        return self.init_wumao(self.ENTRY_USER_ID_2, cursor)
+            self.dao.update_track(user_id, paged_method.__name__, next_cursor)
+            return self.init_wumao(user_id)
 
     @_sleep
     def validate_wumao(self):
