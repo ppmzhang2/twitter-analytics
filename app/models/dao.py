@@ -79,18 +79,31 @@ class Dao(metaclass=SingletonMeta):
         return self.session.query(BaseTweeter).filter(
             BaseTweeter.user_id == user_id).delete()
 
-    def lookup_track(self, cur: int) -> Track:
-        return self.session.query(Track).filter(Track.cursor == cur).first()
+    def lookup_track(self, name: str, method: str) -> Track:
+        return self.session.query(Track).filter(
+            Track.screen_name == name, Track.method == method).first()
 
     @_commit
-    def add_track(self, cur: int) -> None:
-        return self.session.add(Track(cur))
+    def delete_track(self, name: str, method: str) -> int:
+        """delete from 'track' records with specific screen name and paged
+        search method
 
-    @_commit
-    def delete_track(self, cur: int) -> int:
-        """delete from 'track' records with specific cursor number
-
-        :param cur: cursor number
+        :param name: twitter account screen name
+        :param method: search function name
         :return: deleted number of records
         """
-        return self.session.query(Track).filter(Track.cursor == cur).delete()
+        return self.session.query(Track).filter(
+            Track.screen_name == name, Track.method == method).delete()
+
+    @_commit
+    def update_track(self, name: str, method: str, cur: int) -> None:
+        """update 'track' with latest cursor
+
+        :param name: twitter account screen name
+        :param method: search function name
+        :param cur: cursor number
+        :return:
+        """
+        self.session.query(Track).filter(Track.screen_name == name,
+                                         Track.method == method).delete()
+        self.session.add(Track(name, method, cur))

@@ -46,7 +46,11 @@ class Track(Base):
     __tablename__ = 'cursor'
 
     id = sa.Column(sa.Integer, primary_key=True)
+    screen_name = sa.Column(sa.String)
+    method = sa.Column(sa.String)
     cursor = sa.Column(sa.BigInteger)
 
-    def __init__(self, cursor: int):
+    def __init__(self, screen_name: str, method: str, cursor: int):
+        self.screen_name = screen_name
+        self.method = method
         self.cursor = cursor

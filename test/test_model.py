@@ -9,37 +9,47 @@ class TestModel(unittest.TestCase):
     def test_dao(self):
         id1 = 12345
         id2 = 34567
-        cur_num_1 = 1656974570956055733
-        cur_num_2 = 1656809280611943888
+        screen_name_1 = 'abc1234'
+        screen_name_2 = 'Z3f2d3s'
+        method_1 = 'get_following_paged'
+        method_2 = 'get_followers_paged'
+        cursor_1 = 1656974570956055733
+        cursor_2 = 1656809280611943888
         tw1 = Tweeter(id1, 'usr1', 'name1', datetime.date(2020, 10, 3), 2, 39)
         tw2 = Tweeter(id2, 'usr2', 'name2', datetime.date(2019, 1, 23), 20, 9)
         btw1 = BaseTweeter(id1)
-        cur1 = Track(cur_num_1)
+        track1 = Track(screen_name_1, method_1, cursor_1)
+        track2 = Track(screen_name_2, method_2, cursor_2)
         dao = Dao(new=False)
         # bulk save
         dao.bulk_save([tw1, tw2])
         dao.bulk_save([btw1])
-        dao.bulk_save([cur1])
-        # cursor insertion
-        dao.add_track(cur_num_2)
+        dao.bulk_save([track1])
+        # multiple tracks update
+        dao.update_track(screen_name_1, method_1, cursor_1)
+        dao.update_track(screen_name_1, method_1, cursor_1)
+        dao.update_track(screen_name_2, method_2, cursor_2)
+        dao.update_track(screen_name_2, method_2, cursor_2)
         # check existence
         self.assertEqual(dao.lookup_tweeter_user_id(id1).user_id, id1)
         self.assertEqual(dao.lookup_tweeter_user_id(id2).user_id, id2)
         self.assertEqual(dao.first_base_tweeter().user_id, id1)
-        self.assertEqual(dao.lookup_track(cur_num_1).cursor, cur_num_1)
-        self.assertEqual(dao.lookup_track(cur_num_2).cursor, cur_num_2)
+        self.assertEqual(
+            dao.lookup_track(screen_name_1, method_1).cursor, cursor_1)
+        self.assertEqual(
+            dao.lookup_track(screen_name_2, method_2).cursor, cursor_2)
         # delete
         dao.delete_tweeter_user_id(id1)
         dao.delete_tweeter_user_id(id2)
         dao.delete_base_tweeter_user_id(id1)
-        dao.delete_track(cur_num_1)
-        dao.delete_track(cur_num_2)
+        dao.delete_track(screen_name_1, method_1)
+        dao.delete_track(screen_name_2, method_2)
         # check existence after deletion
         self.assertEqual(dao.lookup_tweeter_user_id(id1), None)
         self.assertEqual(dao.lookup_tweeter_user_id(id2), None)
         self.assertEqual(dao.first_base_tweeter(), None)
-        self.assertEqual(dao.lookup_track(cur_num_1), None)
-        self.assertEqual(dao.lookup_track(cur_num_2), None)
+        self.assertEqual(dao.lookup_track(screen_name_1, method_1), None)
+        self.assertEqual(dao.lookup_track(screen_name_2, method_2), None)
 
 
 if __name__ == '__main__':
