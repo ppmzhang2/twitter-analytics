@@ -1,5 +1,9 @@
 # Twitter Wumao Analysis
 
+## Testing
+
+Tested for pypy3.
+
 ## Find Newly Registered Wumao Twitter Accounts
 
 Criteria:
@@ -18,6 +22,21 @@ Search steps:
 ## Wumao Behavior Analysis
 
 TBD
+
+## Usage
+
+Populate potential wumao list with followers of a specific twitter account:
+
+```sh
+# search followers of People's Daily
+python -m app save 1531801543
+```
+
+Keep only connected accounts in potential list:
+
+```sh
+python -m app validate
+```
 
 ## Reference
 
