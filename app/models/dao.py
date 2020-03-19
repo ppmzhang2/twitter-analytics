@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
-from app.models.tables import Tweeter, BaseTweeter
+from app.models.tables import Tweeter, BaseTweeter, Track
 from config import Config
 
 __all__ = ['Dao']
@@ -49,7 +49,7 @@ class Dao(metaclass=SingletonMeta):
         self.session = session_factory()
 
     @_commit
-    def bulk_save(self, objects):
+    def bulk_save(self, objects) -> None:
         """Perform a bulk save of the given sequence of objects
 
         :param objects: a sequence of mapped object instances
@@ -63,6 +63,11 @@ class Dao(metaclass=SingletonMeta):
 
     @_commit
     def delete_tweeter_user_id(self, user_id: int) -> int:
+        """delete from 'tweeter' records with specific user ID
+
+        :param user_id: twitter account user ID
+        :return: deleted number of records
+        """
         return self.session.query(Tweeter).filter(
             Tweeter.user_id == user_id).delete()
 
@@ -73,3 +78,39 @@ class Dao(metaclass=SingletonMeta):
     def delete_base_tweeter_user_id(self, user_id: int) -> int:
         return self.session.query(BaseTweeter).filter(
             BaseTweeter.user_id == user_id).delete()
+
+    def lookup_track(self, user_id: int, method: str) -> Track:
+        return self.session.query(Track).filter(
+            Track.user_id == user_id, Track.method == method).first()
+
+    @_commit
+    def delete_track(self, user_id: int, method: str) -> int:
+        """delete from 'track' records with specific screen name and paged
+        search method
+
+        :param user_id: twitter account ID
+        :param method: search function name
+        :return: deleted number of records
+        """
+        return self.session.query(Track).filter(
+            Track.user_id == user_id, Track.method == method).delete()
+
+    @_commit
+    def add_track(self, user_id: int, method: str, cur: int) -> None:
+        return self.session.add(Track(user_id, method, cur))
+
+    @_commit
+    def update_track(self, user_id: int, method: str, cur: int) -> None:
+        """update 'track' with latest cursor
+
+        :param user_id: twitter account ID
+        :param method: search function name
+        :param cur: cursor number
+        :return:
+        """
+        qry = self.session.query(Track).filter(Track.user_id == user_id,
+                                               Track.method == method)
+        if qry.first() is None:
+            self.session.add(Track(user_id, method, cur))
+        else:
+            qry.update({Track.cursor: cur})

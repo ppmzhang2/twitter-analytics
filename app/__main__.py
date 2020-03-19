@@ -5,8 +5,7 @@ from app.saver import Saver
 args = sys.argv[1:]
 
 funcs = {
-    'save_pd': (1, Saver, Saver.init_pd_wumao),
-    'save_hxj': (1, Saver, Saver.init_hxj_wumao),
+    'save': (1, Saver, Saver.init_wumao),
     'validate': (0, Saver, Saver.validate_wumao)
 }
 
@@ -26,7 +25,7 @@ def arg1():
     try:
         return int(args[1])
     except (IndexError, ValueError):
-        return -1
+        return None
 
 
 def main():
@@ -42,6 +41,8 @@ def main():
     if n_args == 0:
         instance = cls()
         func(instance)
+    elif n_args == 1 and arg1() is None:
+        raise TypeError('user ID not provided')
     elif n_args == 1:
         instance = cls()
         func(instance, arg1())
