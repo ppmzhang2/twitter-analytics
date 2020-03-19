@@ -1,3 +1,4 @@
+from datetime import date
 from functools import wraps
 from time import sleep
 
@@ -62,6 +63,24 @@ class Saver(metaclass=SingletonMeta):
         self.tweet = Tweet()
 
     @staticmethod
+    def _is_junior_wumao(user: twitter.models.User) -> bool:
+        """check if it is a newly registered wumao twitter account
+
+        :param user: a twitter.models.User object
+        :return:
+        """
+        if user.protected:
+            return False
+        elif Tweet.parse_date(user.created_at) < date(2020, 1, 1):
+            return False
+        elif user.followers_count > 30:
+            return False
+        elif user.statuses_count + user.favourites_count < 500:
+            return False
+        else:
+            return True
+
+    @staticmethod
     def _user_to_tweeter(user: twitter.models.User):
         """convert a twitter.User instance to a Tweeter ORM object
 
@@ -94,7 +113,7 @@ class Saver(metaclass=SingletonMeta):
         next_cursor, old_cursor, seq = self.tweet.get_followers_paged(
             user_id=user_id, cursor=cursor, count=count)
         print("#seq:", len(seq))
-        wumaos = [u for u in seq if Tweet.is_junior_wumao(u)]
+        wumaos = [u for u in seq if self._is_junior_wumao(u)]
         new_wumaos = [
             u for u in wumaos if self.dao.lookup_tweeter_user_id(u.id) is None
         ]
@@ -150,7 +169,7 @@ class Saver(metaclass=SingletonMeta):
             related = [
                 u for u in self.tweet.get_following(user_id=user_id)
             ] + [u for u in self.tweet.get_followers(user_id=user_id)]
-            wumaos = [u for u in related if self.tweet.is_junior_wumao(u)]
+            wumaos = [u for u in related if self._is_junior_wumao(u)]
             unique_wumaos = [
                 u for u in wumaos
                 if self.dao.lookup_tweeter_user_id(u.id) is not None
