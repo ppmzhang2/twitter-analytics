@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
-from app.models.tables import Tweeter, BaseTweeter, Cursor
+from app.models.tables import Tweeter, BaseTweeter, Track
 from config import Config
 
 __all__ = ['Dao']
@@ -79,18 +79,18 @@ class Dao(metaclass=SingletonMeta):
         return self.session.query(BaseTweeter).filter(
             BaseTweeter.user_id == user_id).delete()
 
-    def lookup_cursor(self, cur: int) -> Cursor:
-        return self.session.query(Cursor).filter(Cursor.num == cur).first()
+    def lookup_track(self, cur: int) -> Track:
+        return self.session.query(Track).filter(Track.cursor == cur).first()
 
     @_commit
-    def add_cursor(self, cur: int) -> None:
-        return self.session.add(Cursor(cur))
+    def add_track(self, cur: int) -> None:
+        return self.session.add(Track(cur))
 
     @_commit
-    def delete_cursor(self, cur: int) -> int:
-        """delete from 'cursor' records with specific cursor number
+    def delete_track(self, cur: int) -> int:
+        """delete from 'track' records with specific cursor number
 
         :param cur: cursor number
         :return: deleted number of records
         """
-        return self.session.query(Cursor).filter(Cursor.num == cur).delete()
+        return self.session.query(Track).filter(Track.cursor == cur).delete()

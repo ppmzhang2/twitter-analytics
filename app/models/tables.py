@@ -40,13 +40,13 @@ class BaseTweeter(Base):
         self.user_id = user_id
 
 
-class Cursor(Base):
-    """next cursor from paged search
+class Track(Base):
+    """tracks from which to restore twitter paged search
     """
     __tablename__ = 'cursor'
 
     id = sa.Column(sa.Integer, primary_key=True)
-    num = sa.Column(sa.BigInteger)
+    cursor = sa.Column(sa.BigInteger)
 
     def __init__(self, cursor: int):
-        self.num = cursor
+        self.cursor = cursor
