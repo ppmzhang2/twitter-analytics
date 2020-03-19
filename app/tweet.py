@@ -37,24 +37,6 @@ class Tweet(metaclass=SingletonMeta):
         ts = time.strptime(timestamp, '%a %b %d %H:%M:%S +0000 %Y')
         return datetime.date(ts.tm_year, ts.tm_mon, ts.tm_mday)
 
-    @staticmethod
-    def is_junior_wumao(user: twitter.models.User) -> bool:
-        """check if it is a newly registered wumao twitter account
-
-        :param user: a twitter.models.User object
-        :return:
-        """
-        if user.protected:
-            return False
-        elif Tweet.parse_date(user.created_at) < datetime.date(2020, 1, 1):
-            return False
-        elif user.followers_count > 30:
-            return False
-        elif user.statuses_count + user.favourites_count < 500:
-            return False
-        else:
-            return True
-
     def get_followers_paged(
             self,
             user_id,
