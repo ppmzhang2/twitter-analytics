@@ -15,8 +15,8 @@ class Tweeter(Base):
     screen_name = sa.Column(sa.String)
     name = sa.Column(sa.String)
     created_at = sa.Column(sa.Date)
-    followers = sa.Column(sa.Integer)
-    following = sa.Column(sa.Integer)
+    follower_count = sa.Column(sa.Integer)
+    friend_count = sa.Column(sa.Integer)
 
     def __init__(self, user_id: int, screen_name: str, name: str,
                  created_at: date, followers: int, following: int):
@@ -24,8 +24,8 @@ class Tweeter(Base):
         self.screen_name = screen_name
         self.name = name
         self.created_at = created_at
-        self.followers = followers
-        self.following = following
+        self.follower_count = followers
+        self.friend_count = following
 
 
 class BaseTweeter(Base):
