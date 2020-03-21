@@ -36,7 +36,7 @@ class SingletonMeta(type):
     _instance = None
 
     def __call__(cls, *args, **kwargs):
-        if cls._instance is None or kwargs['new'] is True:
+        if cls._instance is None:
             cls._instance = super(SingletonMeta, cls).__call__(*args, **kwargs)
         return cls._instance
 
@@ -44,9 +44,7 @@ class SingletonMeta(type):
 class Dao(metaclass=SingletonMeta):
     __slots__ = ['session']
 
-    def __init__(self, new: bool = False):
-        if new:
-            print("replacing old session")
+    def __init__(self):
         self.session = session_factory()
 
     def _delete_friendship_cascade(self, tweeter_id: int) -> int:

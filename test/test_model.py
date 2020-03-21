@@ -32,7 +32,7 @@ class TestModel(unittest.TestCase):
         :return:
         """
         # initialize & preparation
-        dao = Dao(new=False)
+        dao = Dao()
         TestModel.init_db(dao)
         tweeter_id_1, tweeter_id_2, tweeter_id_3, tweeter_id_4, tweeter_id_5 = (
             dao.lookup_tweeter_user_id(user_id).id
@@ -79,7 +79,7 @@ class TestModel(unittest.TestCase):
         tw1 = Tweeter(id1, 'usr1', 'name1', datetime.date(2020, 10, 3), 2, 39)
         tw2 = Tweeter(id2, 'usr2', 'name2', datetime.date(2019, 1, 23), 20, 9)
         track1 = Track(user_id_1, method_1, cursor_1)
-        dao = Dao(new=False)
+        dao = Dao()
         # first delete with no data in DB
         dao.delete_tweeter_user_id(id1)
         dao.delete_tweeter_user_id(id2)
