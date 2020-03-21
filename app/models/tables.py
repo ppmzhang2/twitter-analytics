@@ -50,6 +50,21 @@ class Tweeter(Base):
         self.friend_count = following
 
 
+class Wumao(Base):
+    __tablename__ = 'wumao'
+
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
+    tweeter_id = sa.Column(sa.Integer,
+                           ForeignKey('tweeter.id',
+                                      onupdate='CASCADE',
+                                      ondelete='CASCADE'),
+                           unique=True,
+                           index=True)
+
+    def __init__(self, tweeter_id: int):
+        self.tweeter_id = tweeter_id
+
+
 class Track(Base):
     """tracks from which to restore twitter paged search
     """

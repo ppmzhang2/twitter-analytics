@@ -33,6 +33,7 @@ class TestModel(unittest.TestCase):
             Track(user_id, method, cursor) for user_id, method, cursor in zip(
                 cls.USER_IDS, cls.METHODS, cls.CURSORS)
         ]
+        # get class variables of table instances
         # bulk save: 5 tweeters, 2 tracks
         # methods
         #   1. dao.bulk_save
@@ -40,12 +41,14 @@ class TestModel(unittest.TestCase):
         cls.dao.bulk_save_tweeter(tweeters_)
         cls.dao.bulk_save_tweeter(tweeters_)
         cls.dao.bulk_save(tracks_)
-        # table instances
         cls.tweeters = cls.dao.all_tweeter_user_id(cls.USER_IDS)
         cls.tracks = [
             cls.dao.lookup_track(track.user_id, track.method)
             for track in tracks_
         ]
+        cls.wumao_tweeter_ids = [u.id for u in cls.tweeters][:3]
+        cls.dao.bulk_save_wumao(cls.wumao_tweeter_ids)
+        cls.wumaos = cls.dao.all_wumao()
         print('setUpClass ended')
 
     @classmethod
@@ -107,10 +110,18 @@ class TestModel(unittest.TestCase):
                          self.dao.follower_count(tweeter_id_1, [tweeter_id_1]))
         self.assertEqual(0, self.dao.follower_count(999))
         # on-delete constrain
+        # methods:
+        #   1. dao.delete_tweeter_id
+        #   2. dao.all_wumao
+        wumao_1, wumao_2, wumao_3 = self.wumaos
+        self.assertEqual(
+            set(self.wumao_tweeter_ids),
+            {wumao_1.tweeter_id, wumao_2.tweeter_id, wumao_3.tweeter_id})
         self.dao.delete_tweeter_id(tweeter_id_3)
         self.assertEqual([tweeter_id_2, tweeter_id_4],
                          self.dao.friends_id(tweeter_id_1))
         self.assertEqual([tweeter_id_5], self.dao.followers_id(tweeter_id_1))
+        self.assertEqual({wumao_1, wumao_2}, set(self.dao.all_wumao()))
 
     def test_track(self):
         # initialize & preparation

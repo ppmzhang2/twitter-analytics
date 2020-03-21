@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, or_, func
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
-from app.models.tables import Tweeter, Friendship, Track
+from app.models.tables import Tweeter, Friendship, Track, Wumao
 from config import Config
 
 __all__ = ['Dao']
@@ -47,15 +47,18 @@ class Dao(metaclass=SingletonMeta):
     def __init__(self):
         self.session = session_factory()
 
-    def _delete_friendship_cascade(self, tweeter_id: int) -> int:
+    def _delete_tweeter_cascade(self, tweeter_id: int) -> int:
         self.session.query(Friendship).filter(
             or_(Friendship.author_id == tweeter_id,
                 Friendship.follower_id == tweeter_id)).delete()
+        self.session.query(Wumao).filter(
+            Wumao.tweeter_id == tweeter_id).delete()
 
     @_commit
     def reset_db(self) -> None:
         self.session.query(Track).delete()
         self.session.query(Friendship).delete()
+        self.session.query(Wumao).delete()
         self.session.query(Tweeter).delete()
 
     @_commit
@@ -111,7 +114,7 @@ class Dao(metaclass=SingletonMeta):
         """
         res = self.session.query(Tweeter).filter(
             Tweeter.id == tweeter_id).delete()
-        self._delete_friendship_cascade(tweeter_id)
+        self._delete_tweeter_cascade(tweeter_id)
         return res
 
     def is_following(self, tweeter_id: int, author_id: int) -> bool:
@@ -184,6 +187,26 @@ class Dao(metaclass=SingletonMeta):
             i for i in followers if i not in self.followers_id(tweeter_id)
         ]
         self.bulk_save((Friendship(tweeter_id, i) for i in new_followers))
+
+    def bulk_save_wumao(self, tweeter_ids: List[int]) -> None:
+        existing_tweeter_ids = set(u.tweeter_id
+                                   for u in self.all_wumao(tweeter_ids))
+        new_wumaos = (Wumao(i) for i in tweeter_ids
+                      if i not in existing_tweeter_ids)
+        return self.bulk_save(new_wumaos)
+
+    def all_wumao(self,
+                  tweeter_ids: Optional[List[int]] = None) -> List[Wumao]:
+        """get all `Wumao` instances, or matched by input 'tweeter' ID
+
+        :param tweeter_ids: 'tweeter' ID list, optional
+        :return: list of `Wumao` instances
+        """
+        qry = self.session.query(Wumao)
+        if tweeter_ids:
+            return qry.filter(Wumao.tweeter_id.in_(tweeter_ids)).all()
+        else:
+            return qry.all()
 
     def lookup_track(self, user_id: int, method: str) -> Track:
         return self.session.query(Track).filter(
