@@ -1,7 +1,7 @@
 from functools import wraps
-from typing import List
+from typing import List, Optional
 
-from sqlalchemy import create_engine, or_
+from sqlalchemy import create_engine, or_, func
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
@@ -109,6 +109,34 @@ class Dao(metaclass=SingletonMeta):
         connections = self.session.query(Friendship).filter(
             Friendship.follower_id == tweeter_id).all()
         return [u.author_id for u in connections]
+
+    def follower_count(self,
+                       tweeter_id: int,
+                       follower_ids: Optional[List[int]] = None) -> int:
+        qry = self.session.query(func.count(Friendship.follower_id))
+        if not follower_ids:
+            res = qry.filter(Friendship.author_id == tweeter_id).first()
+        else:
+            res = qry.filter(Friendship.author_id == tweeter_id,
+                             Friendship.follower_id.in_(follower_ids)).first()
+        if not res:
+            return 0
+        else:
+            return res[0]
+
+    def friend_count(self,
+                     tweeter_id: int,
+                     author_ids: Optional[List[int]] = None) -> int:
+        qry = self.session.query(func.count(Friendship.author_id))
+        if not author_ids:
+            res = qry.filter(Friendship.follower_id == tweeter_id).first()
+        else:
+            res = qry.filter(Friendship.follower_id == tweeter_id,
+                             Friendship.author_id.in_(author_ids)).first()
+        if not res:
+            return 0
+        else:
+            return res[0]
 
     @_commit
     def follow(self, tweeter_id: int, author_id: int):

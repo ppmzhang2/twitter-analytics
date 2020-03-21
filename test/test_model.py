@@ -51,6 +51,8 @@ class TestModel(unittest.TestCase):
         #   1. dao.follow
         #   2. dao.bulk_follow
         #   3. dao.bulk_attract
+        #   4. dao.friend_count
+        #   5. dao.follower_count
         dao.follow(tweeter_id_5, tweeter_id_1)
         dao.bulk_follow(tweeter_id_1, [tweeter_id_2, tweeter_id_3])
         dao.bulk_attract(tweeter_id_4, [tweeter_id_1])
@@ -59,6 +61,12 @@ class TestModel(unittest.TestCase):
         self.assertEqual(True, dao.is_following(tweeter_id_1, tweeter_id_4))
         self.assertEqual(False, dao.is_following(tweeter_id_1, tweeter_id_5))
         self.assertEqual(True, dao.is_following(tweeter_id_5, tweeter_id_1))
+        self.assertEqual(3, dao.friend_count(tweeter_id_1))
+        self.assertEqual(
+            2, dao.friend_count(tweeter_id_1, [tweeter_id_2, tweeter_id_4]))
+        self.assertEqual(1, dao.follower_count(tweeter_id_1))
+        self.assertEqual(0, dao.follower_count(tweeter_id_1, [tweeter_id_1]))
+        self.assertEqual(0, dao.follower_count(999))
         # on-delete constrain
         dao.delete_tweeter_id(tweeter_id_3)
         self.assertEqual([tweeter_id_2, tweeter_id_4],
