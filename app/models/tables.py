@@ -1,8 +1,30 @@
 from datetime import date
 
 import sqlalchemy as sa
+from sqlalchemy import ForeignKey
 
 from app.models.base import Base
+
+
+class Friendship(Base):
+    __tablename__ = 'friendship'
+
+    author_id = sa.Column(sa.Integer,
+                          ForeignKey('tweeter.id',
+                                     onupdate='CASCADE',
+                                     ondelete='CASCADE'),
+                          index=True,
+                          primary_key=True)
+    follower_id = sa.Column(sa.Integer,
+                            ForeignKey('tweeter.id',
+                                       onupdate='CASCADE',
+                                       ondelete='CASCADE'),
+                            index=True,
+                            primary_key=True)
+
+    def __init__(self, author_id: int, follower_id: int):
+        self.author_id = author_id
+        self.follower_id = follower_id
 
 
 class Tweeter(Base):
@@ -11,7 +33,7 @@ class Tweeter(Base):
     __tablename__ = 'tweeter'
 
     id = sa.Column(sa.Integer, primary_key=True)
-    user_id = sa.Column(sa.BigInteger)
+    user_id = sa.Column(sa.BigInteger, unique=True, index=True)
     screen_name = sa.Column(sa.String)
     name = sa.Column(sa.String)
     created_at = sa.Column(sa.Date)
@@ -26,18 +48,6 @@ class Tweeter(Base):
         self.created_at = created_at
         self.follower_count = followers
         self.friend_count = following
-
-
-class BaseTweeter(Base):
-    """Tweeter ID list from which to search
-    """
-    __tablename__ = 'base_tweeter'
-
-    id = sa.Column(sa.Integer, primary_key=True)
-    user_id = sa.Column(sa.BigInteger)
-
-    def __init__(self, user_id: int):
-        self.user_id = user_id
 
 
 class Track(Base):

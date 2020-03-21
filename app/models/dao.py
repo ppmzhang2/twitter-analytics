@@ -1,10 +1,11 @@
 from functools import wraps
+from typing import List
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, or_
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
-from app.models.tables import Tweeter, BaseTweeter, Track
+from app.models.tables import Tweeter, Friendship, Track
 from config import Config
 
 __all__ = ['Dao']
@@ -48,6 +49,11 @@ class Dao(metaclass=SingletonMeta):
             print("replacing old session")
         self.session = session_factory()
 
+    def _delete_friendship_cascade(self, tweeter_id: int) -> int:
+        self.session.query(Friendship).filter(
+            or_(Friendship.author_id == tweeter_id,
+                Friendship.follower_id == tweeter_id)).delete()
+
     @_commit
     def bulk_save(self, objects) -> None:
         """Perform a bulk save of the given sequence of objects
@@ -57,31 +63,60 @@ class Dao(metaclass=SingletonMeta):
         """
         self.session.bulk_save_objects(objects)
 
+    def lookup_tweeter_id(self, pk_id: int) -> Tweeter:
+        return self.session.query(Tweeter).filter(Tweeter.id == pk_id).first()
+
     def lookup_tweeter_user_id(self, user_id: int) -> Tweeter:
         return self.session.query(Tweeter).filter(
             Tweeter.user_id == user_id).first()
 
     @_commit
-    def delete_tweeter_user_id(self, user_id: int) -> int:
-        """delete from 'tweeter' records with specific user ID
+    def delete_tweeter_id(self, tweeter_id: int) -> int:
+        """delete from 'tweeter' by primary key, and delete from 'friendship'
+        CASCADE
 
-        :param user_id: twitter account user ID
+        :param tweeter_id: ID of table 'twitter'
         :return: deleted number of records
         """
-        return self.session.query(Tweeter).filter(
-            Tweeter.user_id == user_id).delete()
+        res = self.session.query(Tweeter).filter(
+            Tweeter.id == tweeter_id).delete()
+        self._delete_friendship_cascade(tweeter_id)
+        return res
 
-    def first_base_tweeter(self) -> BaseTweeter:
-        return self.session.query(BaseTweeter).first()
+    def is_following(self, tweeter_id: int, author_id: int):
+        friendship = self.session.query(Friendship).filter(
+            Friendship.author_id == author_id,
+            Friendship.follower_id == tweeter_id).first()
+        if friendship is None:
+            return False
+        else:
+            return True
 
-    @_commit
-    def delete_base_tweeter_user_id(self, user_id: int) -> int:
-        return self.session.query(BaseTweeter).filter(
-            BaseTweeter.user_id == user_id).delete()
+    def followers_id(self, tweeter_id: int):
+        connections = self.session.query(Friendship).filter(
+            Friendship.author_id == tweeter_id).all()
+        return [u.follower_id for u in connections]
+
+    def friends_id(self, tweeter_id: int):
+        connections = self.session.query(Friendship).filter(
+            Friendship.follower_id == tweeter_id).all()
+        return [u.author_id for u in connections]
 
     def lookup_track(self, user_id: int, method: str) -> Track:
         return self.session.query(Track).filter(
             Track.user_id == user_id, Track.method == method).first()
+
+    @_commit
+    def follow(self, tweeter_id: int, author_id: int):
+        if not self.is_following(tweeter_id, author_id):
+            self.session.add(Friendship(author_id, tweeter_id))
+
+    @_commit
+    def un_follow(self, tweeter_id: int, author_id: int):
+        if self.is_following(tweeter_id, author_id):
+            self.session.query(Friendship).filter(
+                Friendship.author_id == author_id,
+                Friendship.follower_id == tweeter_id).delete()
 
     @_commit
     def delete_track(self, user_id: int, method: str) -> int:
