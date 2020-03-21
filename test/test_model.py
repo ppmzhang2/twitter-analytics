@@ -16,28 +16,36 @@ class TestModel(unittest.TestCase):
     FRIEND_COUNTS = (3215, 0, 782, 3295, 3)
     METHODS = ('get_following_paged', 'get_followers_paged')
     CURSORS = (1656974570956055733, 1656809280611943888)
-    TWEETERS = [
-        Tweeter(user_id, screen_name, name, dt, follower_count, friend_count)
-        for user_id, screen_name, name, dt, follower_count, friend_count in
-        zip(USER_IDS, SCREEN_NAMES, NAMES, DATES, FOLLOWER_COUNTS,
-            FRIEND_COUNTS)
-    ]
-    TRACKS = [
-        Track(user_id, method, cursor)
-        for user_id, method, cursor in zip(USER_IDS, METHODS, CURSORS)
-    ]
 
     @classmethod
     def setUpClass(cls) -> None:
         print('setUpClass started')
         cls.dao = Dao()
         cls.dao.reset_db()
-        # repeat bulk save
+        tweeters_ = [
+            Tweeter(user_id, screen_name, name, dt, follower_count,
+                    friend_count)
+            for user_id, screen_name, name, dt, follower_count, friend_count in
+            zip(cls.USER_IDS, cls.SCREEN_NAMES, cls.NAMES, cls.DATES,
+                cls.FOLLOWER_COUNTS, cls.FRIEND_COUNTS)
+        ]
+        tracks_ = [
+            Track(user_id, method, cursor) for user_id, method, cursor in zip(
+                cls.USER_IDS, cls.METHODS, cls.CURSORS)
+        ]
+        # bulk save: 5 tweeters, 2 tracks
         # methods
-        #   1. dao.bulk_save_tweeter
-        cls.dao.bulk_save_tweeter(TestModel.TWEETERS)
-        cls.dao.bulk_save_tweeter(TestModel.TWEETERS)
-        cls.dao.bulk_save(TestModel.TRACKS)
+        #   1. dao.bulk_save
+        #   2. dao.bulk_save_tweeter
+        cls.dao.bulk_save_tweeter(tweeters_)
+        cls.dao.bulk_save_tweeter(tweeters_)
+        cls.dao.bulk_save(tracks_)
+        # table instances
+        cls.tweeters = cls.dao.all_tweeter_user_id(cls.USER_IDS)
+        cls.tracks = [
+            cls.dao.lookup_track(track.user_id, track.method)
+            for track in tracks_
+        ]
         print('setUpClass ended')
 
     @classmethod
@@ -60,8 +68,7 @@ class TestModel(unittest.TestCase):
         """
         # initialize & preparation
         tweeter_id_1, tweeter_id_2, tweeter_id_3, tweeter_id_4, tweeter_id_5 = (
-            self.dao.lookup_tweeter_user_id(user_id).id
-            for user_id in TestModel.USER_IDS)
+            u.id for u in self.tweeters)
         # find all tweeter
         # methods:
         #   1. dao.lookup_tweeter_user_id
@@ -107,15 +114,13 @@ class TestModel(unittest.TestCase):
 
     def test_track(self):
         # initialize & preparation
-        track_1, track_2 = (
-            self.dao.lookup_track(user_id, method)
-            for user_id, method in zip(TestModel.USER_IDS, TestModel.METHODS))
+        track_1, track_2 = self.tracks
         # delete
         # methods:
         #   1. dao.lookup_track
         #   2. dao.delete_track
         self.assertEqual(set(TestModel.CURSORS),
-                         set((track_1.cursor, track_2.cursor)))
+                         {track_1.cursor, track_2.cursor})
         self.dao.delete_track(track_1.user_id, track_1.method)
         self.assertEqual(
             None, self.dao.lookup_track(track_1.user_id, track_1.method))
