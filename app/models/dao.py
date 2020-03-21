@@ -1,5 +1,5 @@
 from functools import wraps
-from typing import List, Optional
+from typing import List, Optional, Iterable
 
 from sqlalchemy import create_engine, or_, func
 from sqlalchemy.orm import sessionmaker
@@ -59,7 +59,7 @@ class Dao(metaclass=SingletonMeta):
         self.session.query(Tweeter).delete()
 
     @_commit
-    def bulk_save(self, objects) -> None:
+    def bulk_save(self, objects: Iterable) -> None:
         """Perform a bulk save of the given sequence of objects
 
         :param objects: a sequence of mapped object instances
@@ -67,14 +67,37 @@ class Dao(metaclass=SingletonMeta):
         """
         self.session.bulk_save_objects(objects)
 
-    def lookup_tweeter_id(self, pk_id: int) -> Tweeter:
+    def bulk_save_tweeter(self, tweeters: List[Tweeter]) -> None:
+        user_ids = [u.user_id for u in tweeters]
+        existing_user_ids = set(u.user_id
+                                for u in self.all_tweeter_user_id(user_ids))
+        new_tweeters = (u for u in tweeters
+                        if u.user_id not in existing_user_ids)
+        return self.bulk_save(new_tweeters)
+
+    def lookup_tweeter_id(self, pk_id: int) -> Optional[Tweeter]:
+        """get `Tweeter` instance by primary key
+
+        :param pk_id: table 'tweeter' primary key
+        :return: a `Tweeter` instance of None if no match
+        """
         return self.session.query(Tweeter).filter(Tweeter.id == pk_id).first()
 
-    def lookup_tweeter_user_id(self, user_id: int) -> Tweeter:
+    def lookup_tweeter_user_id(self, user_id: int) -> Optional[Tweeter]:
+        """get `Tweeter` instance by column 'user_id'
+
+        :param user_id: user_id of table 'tweeter'
+        :return: a `Tweeter` instance of None if no match
+        """
         return self.session.query(Tweeter).filter(
             Tweeter.user_id == user_id).first()
 
     def all_tweeter_user_id(self, user_ids: List[int]) -> List[Tweeter]:
+        """get all matched `Tweeter` object by user_id
+
+        :param user_ids: user_id `list`
+        :return: list of `Tweeter` instances
+        """
         return self.session.query(Tweeter).filter(
             Tweeter.user_id.in_(user_ids)).all()
 
@@ -91,7 +114,7 @@ class Dao(metaclass=SingletonMeta):
         self._delete_friendship_cascade(tweeter_id)
         return res
 
-    def is_following(self, tweeter_id: int, author_id: int):
+    def is_following(self, tweeter_id: int, author_id: int) -> bool:
         friendship = self.session.query(Friendship).filter(
             Friendship.author_id == author_id,
             Friendship.follower_id == tweeter_id).first()
@@ -100,12 +123,12 @@ class Dao(metaclass=SingletonMeta):
         else:
             return True
 
-    def followers_id(self, tweeter_id: int):
+    def followers_id(self, tweeter_id: int) -> List[int]:
         connections = self.session.query(Friendship).filter(
             Friendship.author_id == tweeter_id).all()
         return [u.follower_id for u in connections]
 
-    def friends_id(self, tweeter_id: int):
+    def friends_id(self, tweeter_id: int) -> List[int]:
         connections = self.session.query(Friendship).filter(
             Friendship.follower_id == tweeter_id).all()
         return [u.author_id for u in connections]
@@ -139,25 +162,23 @@ class Dao(metaclass=SingletonMeta):
             return res[0]
 
     @_commit
-    def follow(self, tweeter_id: int, author_id: int):
+    def follow(self, tweeter_id: int, author_id: int) -> None:
         if not self.is_following(tweeter_id, author_id):
             self.session.add(Friendship(author_id, tweeter_id))
 
     @_commit
-    def un_follow(self, tweeter_id: int, author_id: int):
+    def un_follow(self, tweeter_id: int, author_id: int) -> None:
         if self.is_following(tweeter_id, author_id):
             self.session.query(Friendship).filter(
                 Friendship.author_id == author_id,
                 Friendship.follower_id == tweeter_id).delete()
 
-    @_commit
     def bulk_follow(self, tweeter_id: int, authors: List[int]) -> None:
         new_authors = [
             i for i in authors if i not in self.friends_id(tweeter_id)
         ]
         self.bulk_save((Friendship(i, tweeter_id) for i in new_authors))
 
-    @_commit
     def bulk_attract(self, tweeter_id: int, followers: List[int]) -> None:
         new_followers = [
             i for i in followers if i not in self.followers_id(tweeter_id)

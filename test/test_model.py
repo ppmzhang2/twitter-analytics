@@ -16,20 +16,27 @@ class TestModel(unittest.TestCase):
     FRIEND_COUNTS = (3215, 0, 782, 3295, 3)
     METHODS = ('get_following_paged', 'get_followers_paged')
     CURSORS = (1656974570956055733, 1656809280611943888)
-    TWEETERS = (Tweeter(user_id, screen_name, name, dt, follower_count,
-                        friend_count)
-                for user_id, screen_name, name, dt, follower_count,
-                friend_count in zip(USER_IDS, SCREEN_NAMES, NAMES, DATES,
-                                    FOLLOWER_COUNTS, FRIEND_COUNTS))
-    TRACKS = (Track(user_id, method, cursor)
-              for user_id, method, cursor in zip(USER_IDS, METHODS, CURSORS))
+    TWEETERS = [
+        Tweeter(user_id, screen_name, name, dt, follower_count, friend_count)
+        for user_id, screen_name, name, dt, follower_count, friend_count in
+        zip(USER_IDS, SCREEN_NAMES, NAMES, DATES, FOLLOWER_COUNTS,
+            FRIEND_COUNTS)
+    ]
+    TRACKS = [
+        Track(user_id, method, cursor)
+        for user_id, method, cursor in zip(USER_IDS, METHODS, CURSORS)
+    ]
 
     @classmethod
     def setUpClass(cls) -> None:
         print('setUpClass started')
         cls.dao = Dao()
         cls.dao.reset_db()
-        cls.dao.bulk_save(TestModel.TWEETERS)
+        # repeat bulk save
+        # methods
+        #   1. dao.bulk_save_tweeter
+        cls.dao.bulk_save_tweeter(TestModel.TWEETERS)
+        cls.dao.bulk_save_tweeter(TestModel.TWEETERS)
         cls.dao.bulk_save(TestModel.TRACKS)
         print('setUpClass ended')
 
