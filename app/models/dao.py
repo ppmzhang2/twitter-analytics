@@ -110,10 +110,6 @@ class Dao(metaclass=SingletonMeta):
             Friendship.follower_id == tweeter_id).all()
         return [u.author_id for u in connections]
 
-    def lookup_track(self, user_id: int, method: str) -> Track:
-        return self.session.query(Track).filter(
-            Track.user_id == user_id, Track.method == method).first()
-
     @_commit
     def follow(self, tweeter_id: int, author_id: int):
         if not self.is_following(tweeter_id, author_id):
@@ -139,6 +135,10 @@ class Dao(metaclass=SingletonMeta):
             i for i in followers if i not in self.followers_id(tweeter_id)
         ]
         self.bulk_save((Friendship(tweeter_id, i) for i in new_followers))
+
+    def lookup_track(self, user_id: int, method: str) -> Track:
+        return self.session.query(Track).filter(
+            Track.user_id == user_id, Track.method == method).first()
 
     @_commit
     def delete_track(self, user_id: int, method: str) -> int:
