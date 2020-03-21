@@ -1,4 +1,3 @@
-import datetime
 import unittest
 from datetime import date
 
@@ -15,15 +14,36 @@ class TestModel(unittest.TestCase):
              date(2017, 6, 15), date(1991, 6, 25))
     FOLLOWER_COUNTS = (1, 56, 878264, 223, 872)
     FRIEND_COUNTS = (3215, 0, 782, 3295, 3)
+    METHODS = ('get_following_paged', 'get_followers_paged')
+    CURSORS = (1656974570956055733, 1656809280611943888)
     TWEETERS = (Tweeter(user_id, screen_name, name, dt, follower_count,
                         friend_count)
                 for user_id, screen_name, name, dt, follower_count,
                 friend_count in zip(USER_IDS, SCREEN_NAMES, NAMES, DATES,
                                     FOLLOWER_COUNTS, FRIEND_COUNTS))
+    TRACKS = (Track(user_id, method, cursor)
+              for user_id, method, cursor in zip(USER_IDS, METHODS, CURSORS))
 
-    @staticmethod
-    def init_db(dao):
-        dao.bulk_save(TestModel.TWEETERS)
+    @classmethod
+    def setUpClass(cls) -> None:
+        print('setUpClass started')
+        cls.dao = Dao()
+        cls.dao.reset_db()
+        cls.dao.bulk_save(TestModel.TWEETERS)
+        cls.dao.bulk_save(TestModel.TRACKS)
+        print('setUpClass ended')
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        print('tearDownClass started')
+        cls.dao.reset_db()
+        print('tearDownClass ended')
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
 
     def test_tweeter(self):
         """checks DAO methods on table 'tweeter', its many-to-many junction
@@ -32,19 +52,17 @@ class TestModel(unittest.TestCase):
         :return:
         """
         # initialize & preparation
-        dao = Dao()
-        TestModel.init_db(dao)
         tweeter_id_1, tweeter_id_2, tweeter_id_3, tweeter_id_4, tweeter_id_5 = (
-            dao.lookup_tweeter_user_id(user_id).id
+            self.dao.lookup_tweeter_user_id(user_id).id
             for user_id in TestModel.USER_IDS)
         # find all tweeter
         # methods:
         #   1. dao.lookup_tweeter_user_id
         #   2. dao.all_tweeter_user_id
         set_1 = set(
-            dao.lookup_tweeter_user_id(user_id)
+            self.dao.lookup_tweeter_user_id(user_id)
             for user_id in TestModel.USER_IDS)
-        set_2 = set(dao.all_tweeter_user_id(TestModel.USER_IDS))
+        set_2 = set(self.dao.all_tweeter_user_id(TestModel.USER_IDS))
         self.assertEqual(set_1, set_2)
         # follow: 1 follows 2, 3, 4; 5 follows 1
         # methods:
@@ -53,79 +71,61 @@ class TestModel(unittest.TestCase):
         #   3. dao.bulk_attract
         #   4. dao.friend_count
         #   5. dao.follower_count
-        dao.follow(tweeter_id_5, tweeter_id_1)
-        dao.bulk_follow(tweeter_id_1, [tweeter_id_2, tweeter_id_3])
-        dao.bulk_attract(tweeter_id_4, [tweeter_id_1])
-        self.assertEqual(True, dao.is_following(tweeter_id_1, tweeter_id_2))
-        self.assertEqual(True, dao.is_following(tweeter_id_1, tweeter_id_3))
-        self.assertEqual(True, dao.is_following(tweeter_id_1, tweeter_id_4))
-        self.assertEqual(False, dao.is_following(tweeter_id_1, tweeter_id_5))
-        self.assertEqual(True, dao.is_following(tweeter_id_5, tweeter_id_1))
-        self.assertEqual(3, dao.friend_count(tweeter_id_1))
+        self.dao.follow(tweeter_id_5, tweeter_id_1)
+        self.dao.bulk_follow(tweeter_id_1, [tweeter_id_2, tweeter_id_3])
+        self.dao.bulk_attract(tweeter_id_4, [tweeter_id_1])
+        self.assertEqual(True, self.dao.is_following(tweeter_id_1,
+                                                     tweeter_id_2))
+        self.assertEqual(True, self.dao.is_following(tweeter_id_1,
+                                                     tweeter_id_3))
+        self.assertEqual(True, self.dao.is_following(tweeter_id_1,
+                                                     tweeter_id_4))
+        self.assertEqual(False,
+                         self.dao.is_following(tweeter_id_1, tweeter_id_5))
+        self.assertEqual(True, self.dao.is_following(tweeter_id_5,
+                                                     tweeter_id_1))
+        self.assertEqual(3, self.dao.friend_count(tweeter_id_1))
         self.assertEqual(
-            2, dao.friend_count(tweeter_id_1, [tweeter_id_2, tweeter_id_4]))
-        self.assertEqual(1, dao.follower_count(tweeter_id_1))
-        self.assertEqual(0, dao.follower_count(tweeter_id_1, [tweeter_id_1]))
-        self.assertEqual(0, dao.follower_count(999))
+            2, self.dao.friend_count(tweeter_id_1,
+                                     [tweeter_id_2, tweeter_id_4]))
+        self.assertEqual(1, self.dao.follower_count(tweeter_id_1))
+        self.assertEqual(0,
+                         self.dao.follower_count(tweeter_id_1, [tweeter_id_1]))
+        self.assertEqual(0, self.dao.follower_count(999))
         # on-delete constrain
-        dao.delete_tweeter_id(tweeter_id_3)
+        self.dao.delete_tweeter_id(tweeter_id_3)
         self.assertEqual([tweeter_id_2, tweeter_id_4],
-                         dao.friends_id(tweeter_id_1))
-        self.assertEqual([tweeter_id_5], dao.followers_id(tweeter_id_1))
-        # reset
-        dao.reset_db()
+                         self.dao.friends_id(tweeter_id_1))
+        self.assertEqual([tweeter_id_5], self.dao.followers_id(tweeter_id_1))
 
-    def test_dao(self):
-        id1 = 12345
-        id2 = 34567
-        user_id_1 = 9876543210
-        user_id_2 = 123456789
-        method_1 = 'get_following_paged'
-        method_2 = 'get_followers_paged'
-        cursor_1 = 1656974570956055733
-        cursor_2 = 1656809280611943888
-        tw1 = Tweeter(id1, 'usr1', 'name1', datetime.date(2020, 10, 3), 2, 39)
-        tw2 = Tweeter(id2, 'usr2', 'name2', datetime.date(2019, 1, 23), 20, 9)
-        track1 = Track(user_id_1, method_1, cursor_1)
-        dao = Dao()
-        # first delete with no data in DB
-        dao.delete_tweeter_user_id(id1)
-        dao.delete_tweeter_user_id(id2)
-        dao.delete_base_tweeter_user_id(id1)
-        dao.delete_track(user_id_1, method_1)
-        dao.delete_track(user_id_2, method_2)
-        # bulk save
-        dao.bulk_save([tw1, tw2])
-        dao.bulk_save([track1])
-        # check existence
-        self.assertEqual(dao.lookup_tweeter_user_id(id1).user_id, id1)
-        self.assertEqual(dao.lookup_tweeter_user_id(id2).user_id, id2)
-        self.assertEqual(dao.first_base_tweeter().user_id, id1)
+    def test_track(self):
+        # initialize & preparation
+        track_1, track_2 = (
+            self.dao.lookup_track(user_id, method)
+            for user_id, method in zip(TestModel.USER_IDS, TestModel.METHODS))
+        # delete
+        # methods:
+        #   1. dao.lookup_track
+        #   2. dao.delete_track
+        self.assertEqual(set(TestModel.CURSORS),
+                         set((track_1.cursor, track_2.cursor)))
+        self.dao.delete_track(track_1.user_id, track_1.method)
         self.assertEqual(
-            dao.lookup_track(user_id_1, method_1).cursor, cursor_1)
-        self.assertEqual(dao.lookup_track(user_id_2, method_2), None)
+            None, self.dao.lookup_track(track_1.user_id, track_1.method))
         # multiple tracks update
-        dao.update_track(user_id_1, method_1, cursor_1)
-        dao.update_track(user_id_1, method_1, cursor_1)
-        dao.update_track(user_id_2, method_2, cursor_2)
-        dao.update_track(user_id_2, method_2, cursor_2)
+        # methods:
+        #   1. dao.update_track
+        self.dao.update_track(track_1.user_id, track_1.method, track_1.cursor)
+        self.dao.update_track(track_1.user_id, track_1.method, track_1.cursor)
+        self.dao.update_track(track_2.user_id, track_2.method, track_2.cursor)
+        self.dao.update_track(track_2.user_id, track_2.method, track_2.cursor)
         # check existence
         self.assertEqual(
-            dao.lookup_track(user_id_1, method_1).cursor, cursor_1)
+            track_1.cursor,
+            self.dao.lookup_track(track_1.user_id, track_1.method).cursor)
         self.assertEqual(
-            dao.lookup_track(user_id_2, method_2).cursor, cursor_2)
-        # delete again
-        dao.delete_tweeter_user_id(id1)
-        dao.delete_tweeter_user_id(id2)
-        dao.delete_base_tweeter_user_id(id1)
-        dao.delete_track(user_id_1, method_1)
-        dao.delete_track(user_id_2, method_2)
-        # check existence after deletion
-        self.assertEqual(dao.lookup_tweeter_user_id(id1), None)
-        self.assertEqual(dao.lookup_tweeter_user_id(id2), None)
-        self.assertEqual(dao.first_base_tweeter(), None)
-        self.assertEqual(dao.lookup_track(user_id_1, method_1), None)
-        self.assertEqual(dao.lookup_track(user_id_2, method_2), None)
+            track_2.cursor,
+            self.dao.lookup_track(track_2.user_id, track_2.method).cursor)
 
 
 if __name__ == '__main__':
