@@ -21,41 +21,51 @@ class TestModel(unittest.TestCase):
                 friend_count in zip(USER_IDS, SCREEN_NAMES, NAMES, DATES,
                                     FOLLOWER_COUNTS, FRIEND_COUNTS))
 
-    def test_friendship(self):
-        """checks DAO methods on many-to-many junction 'friendship' and its
-        'on-delete' constrain
+    @staticmethod
+    def init_db(dao):
+        dao.bulk_save(TestModel.TWEETERS)
+
+    def test_tweeter(self):
+        """checks DAO methods on table 'tweeter', its many-to-many junction
+        table 'friendship' and its 'on-delete' constrain
 
         :return:
         """
+        # initialize & preparation
         dao = Dao(new=False)
-        # bulk save
-        dao.bulk_save(TestModel.TWEETERS)
-        # find record IDs from table 'tweeter'
+        TestModel.init_db(dao)
         tweeter_id_1, tweeter_id_2, tweeter_id_3, tweeter_id_4, tweeter_id_5 = (
             dao.lookup_tweeter_user_id(user_id).id
             for user_id in TestModel.USER_IDS)
+        # find all tweeter
+        # methods:
+        #   1. dao.lookup_tweeter_user_id
+        #   2. dao.all_tweeter_user_id
+        set_1 = set(
+            dao.lookup_tweeter_user_id(user_id)
+            for user_id in TestModel.USER_IDS)
+        set_2 = set(dao.all_tweeter_user_id(TestModel.USER_IDS))
+        self.assertEqual(set_1, set_2)
         # follow: 1 follows 2, 3, 4; 5 follows 1
-        dao.follow(tweeter_id_1, tweeter_id_2)
-        dao.follow(tweeter_id_1, tweeter_id_3)
-        dao.follow(tweeter_id_1, tweeter_id_4)
+        # methods:
+        #   1. dao.follow
+        #   2. dao.bulk_follow
+        #   3. dao.bulk_attract
         dao.follow(tweeter_id_5, tweeter_id_1)
-        # check friendship
+        dao.bulk_follow(tweeter_id_1, [tweeter_id_2, tweeter_id_3])
+        dao.bulk_attract(tweeter_id_4, [tweeter_id_1])
         self.assertEqual(True, dao.is_following(tweeter_id_1, tweeter_id_2))
         self.assertEqual(True, dao.is_following(tweeter_id_1, tweeter_id_3))
         self.assertEqual(True, dao.is_following(tweeter_id_1, tweeter_id_4))
         self.assertEqual(False, dao.is_following(tweeter_id_1, tweeter_id_5))
         self.assertEqual(True, dao.is_following(tweeter_id_5, tweeter_id_1))
-        # delete 3
+        # on-delete constrain
         dao.delete_tweeter_id(tweeter_id_3)
         self.assertEqual([tweeter_id_2, tweeter_id_4],
                          dao.friends_id(tweeter_id_1))
         self.assertEqual([tweeter_id_5], dao.followers_id(tweeter_id_1))
-        # delete
-        dao.delete_tweeter_id(tweeter_id_1)
-        dao.delete_tweeter_id(tweeter_id_2)
-        dao.delete_tweeter_id(tweeter_id_3)
-        dao.delete_tweeter_id(tweeter_id_4)
-        dao.delete_tweeter_id(tweeter_id_5)
+        # reset
+        dao.reset_db()
 
     def test_dao(self):
         id1 = 12345

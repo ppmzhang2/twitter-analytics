@@ -55,6 +55,12 @@ class Dao(metaclass=SingletonMeta):
                 Friendship.follower_id == tweeter_id)).delete()
 
     @_commit
+    def reset_db(self) -> None:
+        self.session.query(Track).delete()
+        self.session.query(Friendship).delete()
+        self.session.query(Tweeter).delete()
+
+    @_commit
     def bulk_save(self, objects) -> None:
         """Perform a bulk save of the given sequence of objects
 
@@ -69,6 +75,10 @@ class Dao(metaclass=SingletonMeta):
     def lookup_tweeter_user_id(self, user_id: int) -> Tweeter:
         return self.session.query(Tweeter).filter(
             Tweeter.user_id == user_id).first()
+
+    def all_tweeter_user_id(self, user_ids: List[int]) -> List[Tweeter]:
+        return self.session.query(Tweeter).filter(
+            Tweeter.user_id.in_(user_ids)).all()
 
     @_commit
     def delete_tweeter_id(self, tweeter_id: int) -> int:
@@ -117,6 +127,20 @@ class Dao(metaclass=SingletonMeta):
             self.session.query(Friendship).filter(
                 Friendship.author_id == author_id,
                 Friendship.follower_id == tweeter_id).delete()
+
+    @_commit
+    def bulk_follow(self, tweeter_id: int, authors: List[int]) -> None:
+        new_authors = [
+            i for i in authors if i not in self.friends_id(tweeter_id)
+        ]
+        self.bulk_save((Friendship(i, tweeter_id) for i in new_authors))
+
+    @_commit
+    def bulk_attract(self, tweeter_id: int, followers: List[int]) -> None:
+        new_followers = [
+            i for i in followers if i not in self.followers_id(tweeter_id)
+        ]
+        self.bulk_save((Friendship(tweeter_id, i) for i in new_followers))
 
     @_commit
     def delete_track(self, user_id: int, method: str) -> int:
