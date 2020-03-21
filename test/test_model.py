@@ -1,58 +1,61 @@
 import datetime
 import unittest
+from datetime import date
 
 from app.models.dao import Dao
-from app.models.tables import Tweeter, Friendship, Track
+from app.models.tables import Tweeter, Track
 
 
 class TestModel(unittest.TestCase):
+    USER_IDS = (12345678901, 12345678902, 12345678903, 12345678904,
+                12345678905)
+    SCREEN_NAMES = ('user_1', 'user_2', 'user_3', 'user_4', 'user_5')
+    NAMES = ('name 1', 'name 2', 'name 3', 'name 4', 'name 5')
+    DATES = (date(2011, 12, 16), date(2020, 2, 29), date(2018, 1, 2),
+             date(2017, 6, 15), date(1991, 6, 25))
+    FOLLOWER_COUNTS = (1, 56, 878264, 223, 872)
+    FRIEND_COUNTS = (3215, 0, 782, 3295, 3)
+    TWEETERS = (Tweeter(user_id, screen_name, name, dt, follower_count,
+                        friend_count)
+                for user_id, screen_name, name, dt, follower_count,
+                friend_count in zip(USER_IDS, SCREEN_NAMES, NAMES, DATES,
+                                    FOLLOWER_COUNTS, FRIEND_COUNTS))
+
     def test_friendship(self):
-        user_id_1 = 12345678901
-        user_id_2 = 12345678902
-        user_id_3 = 12345678903
-        user_id_4 = 12345678904
-        user_id_5 = 12345678905
-        tw1 = Tweeter(user_id_1, 'usr1', 'name1', datetime.date(2020, 10, 3),
-                      2, 39)
-        tw2 = Tweeter(user_id_2, 'usr2', 'name2', datetime.date(2019, 1, 23),
-                      21, 9)
-        tw3 = Tweeter(user_id_3, 'usr3', 'name3', datetime.date(2019, 2, 23),
-                      22, 8)
-        tw4 = Tweeter(user_id_4, 'usr4', 'name4', datetime.date(2019, 3, 23),
-                      23, 7)
-        tw5 = Tweeter(user_id_5, 'usr5', 'name5', datetime.date(2019, 4, 23),
-                      24, 6)
+        """checks DAO methods on many-to-many junction 'friendship' and its
+        'on-delete' constrain
+
+        :return:
+        """
         dao = Dao(new=False)
         # bulk save
-        dao.bulk_save([tw1, tw2, tw3, tw4, tw5])
-        # find PK_ID
-        tweeter_1 = dao.lookup_tweeter_user_id(user_id_1)
-        tweeter_2 = dao.lookup_tweeter_user_id(user_id_2)
-        tweeter_3 = dao.lookup_tweeter_user_id(user_id_3)
-        tweeter_4 = dao.lookup_tweeter_user_id(user_id_4)
-        tweeter_5 = dao.lookup_tweeter_user_id(user_id_5)
-        # follow
-        dao.follow(tweeter_1.id, tweeter_2.id)
-        dao.follow(tweeter_1.id, tweeter_3.id)
-        dao.follow(tweeter_1.id, tweeter_4.id)
-        dao.follow(tweeter_5.id, tweeter_1.id)
+        dao.bulk_save(TestModel.TWEETERS)
+        # find record IDs from table 'tweeter'
+        tweeter_id_1, tweeter_id_2, tweeter_id_3, tweeter_id_4, tweeter_id_5 = (
+            dao.lookup_tweeter_user_id(user_id).id
+            for user_id in TestModel.USER_IDS)
+        # follow: 1 follows 2, 3, 4; 5 follows 1
+        dao.follow(tweeter_id_1, tweeter_id_2)
+        dao.follow(tweeter_id_1, tweeter_id_3)
+        dao.follow(tweeter_id_1, tweeter_id_4)
+        dao.follow(tweeter_id_5, tweeter_id_1)
         # check friendship
-        self.assertEqual(True, dao.is_following(tweeter_1.id, tweeter_2.id))
-        self.assertEqual(True, dao.is_following(tweeter_1.id, tweeter_3.id))
-        self.assertEqual(True, dao.is_following(tweeter_1.id, tweeter_4.id))
-        self.assertEqual(False, dao.is_following(tweeter_1.id, tweeter_5.id))
-        self.assertEqual(True, dao.is_following(tweeter_5.id, tweeter_1.id))
-        # delete 3rd
-        dao.delete_tweeter_id(tweeter_3.id)
-        self.assertEqual([tweeter_2.id, tweeter_4.id],
-                         dao.friends_id(tweeter_1.id))
-        self.assertEqual([tweeter_5.id], dao.followers_id(tweeter_1.id))
+        self.assertEqual(True, dao.is_following(tweeter_id_1, tweeter_id_2))
+        self.assertEqual(True, dao.is_following(tweeter_id_1, tweeter_id_3))
+        self.assertEqual(True, dao.is_following(tweeter_id_1, tweeter_id_4))
+        self.assertEqual(False, dao.is_following(tweeter_id_1, tweeter_id_5))
+        self.assertEqual(True, dao.is_following(tweeter_id_5, tweeter_id_1))
+        # delete 3
+        dao.delete_tweeter_id(tweeter_id_3)
+        self.assertEqual([tweeter_id_2, tweeter_id_4],
+                         dao.friends_id(tweeter_id_1))
+        self.assertEqual([tweeter_id_5], dao.followers_id(tweeter_id_1))
         # delete
-        dao.delete_tweeter_id(tweeter_1.id)
-        dao.delete_tweeter_id(tweeter_2.id)
-        dao.delete_tweeter_id(tweeter_3.id)
-        dao.delete_tweeter_id(tweeter_4.id)
-        dao.delete_tweeter_id(tweeter_5.id)
+        dao.delete_tweeter_id(tweeter_id_1)
+        dao.delete_tweeter_id(tweeter_id_2)
+        dao.delete_tweeter_id(tweeter_id_3)
+        dao.delete_tweeter_id(tweeter_id_4)
+        dao.delete_tweeter_id(tweeter_id_5)
 
     def test_dao(self):
         id1 = 12345
