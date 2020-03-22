@@ -7,6 +7,7 @@ from app.models.tables import Track
 
 
 class TestModel(unittest.TestCase):
+    dao = None
     USER_IDS = (12345678901, 12345678902, 12345678903, 12345678904,
                 12345678905)
     SCREEN_NAMES = ('user_1', 'user_2', 'user_3', 'user_4', 'user_5')
@@ -64,14 +65,16 @@ class TestModel(unittest.TestCase):
         ]
         self.dao.bulk_save_tweeter(self.USERS)
         self.dao.bulk_save(tracks_)
-        self.tweeters = self.dao.all_tweeter_user_id(self.USER_IDS)
+        tweeter_ids = self.dao.all_tweeter_id(self.USER_IDS)
+        self.tweeters = [self.dao.lookup_tweeter(i) for i in tweeter_ids]
         self.tracks = [
             self.dao.lookup_track(track.user_id, track.method)
             for track in tracks_
         ]
         self.wumao_tweeter_ids = [u.id for u in self.tweeters][:3]
         self.dao.bulk_save_wumao(self.wumao_tweeter_ids)
-        self.wumaos = self.dao.all_wumao()
+        wumao_ids = self.dao.all_wumao_id()
+        self.wumaos = [self.dao.lookup_wumao(i) for i in wumao_ids]
         print('setUp ended')
 
     def tearDown(self):
@@ -87,25 +90,23 @@ class TestModel(unittest.TestCase):
           * dao.bulk_save_tweeter
         :return:
         """
-        print('aaa')
-        print(self.dao.all_tweeter_user_id(self.USER_IDS))
-        print(self.dao.all_wumao())
-        self.assertEqual([], self.dao.bulk_save_tweeter(self.USERS))
-        self.assertEqual([], self.dao.bulk_save_wumao(self.wumao_tweeter_ids))
+        self.assertEqual(set(), self.dao.bulk_save_tweeter(self.USERS))
+        self.assertEqual(set(),
+                         self.dao.bulk_save_wumao(self.wumao_tweeter_ids))
 
     def test_tweeter(self):
         """checks DAO methods on table 'tweeter'
 
         methods:
-          * dao.lookup_tweeter_user_id
+          * dao.lookup_tweeter_id
           * dao.all_tweeter_user_id
 
         :return:
         """
         set_1 = set(
-            self.dao.lookup_tweeter_user_id(user_id)
-            for user_id in TestModel.USER_IDS)
-        set_2 = set(self.dao.all_tweeter_user_id(TestModel.USER_IDS))
+            self.dao.lookup_tweeter(tweeter.id).id
+            for tweeter in self.tweeters)
+        set_2 = self.dao.all_tweeter_id(TestModel.USER_IDS)
         self.assertEqual(set_1, set_2)
 
     def test_friendship(self):
@@ -147,7 +148,7 @@ class TestModel(unittest.TestCase):
                          self.dao.follower_count(tweeter_id_1, [tweeter_id_1]))
         self.assertEqual(0, self.dao.follower_count(999))
         # on-delete constrain
-        self.dao.delete_tweeter_id(tweeter_id_3)
+        self.dao.delete_tweeter(tweeter_id_3)
         self.assertEqual([tweeter_id_2, tweeter_id_4],
                          self.dao.friends_id(tweeter_id_1))
         self.assertEqual([tweeter_id_5], self.dao.followers_id(tweeter_id_1))
@@ -169,8 +170,8 @@ class TestModel(unittest.TestCase):
             set(self.wumao_tweeter_ids),
             {wumao_1.tweeter_id, wumao_2.tweeter_id, wumao_3.tweeter_id})
         # on-delete constrain
-        self.dao.delete_tweeter_id(tweeter_id_3)
-        self.assertEqual({wumao_1, wumao_2}, set(self.dao.all_wumao()))
+        self.dao.delete_tweeter(tweeter_id_3)
+        self.assertEqual({wumao_1.id, wumao_2.id}, self.dao.all_wumao_id())
 
     def test_track(self):
         """checks DAO methods of table 'track'

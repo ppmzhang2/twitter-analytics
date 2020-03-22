@@ -1,6 +1,6 @@
 from datetime import datetime
 from functools import wraps
-from typing import List, Optional, Iterable
+from typing import List, Optional, Iterable, Set
 
 import twitter
 from sqlalchemy import create_engine, or_, func
@@ -93,53 +93,46 @@ class Dao(metaclass=SingletonMeta):
         """
         self.session.bulk_save_objects(objects)
 
-    def bulk_save_tweeter(self, users: List[twitter.models.User]) -> List[int]:
+    def bulk_save_tweeter(self, users: List[twitter.models.User]) -> Set[int]:
         """bulk save on table 'tweeter'
         refer to dao.bulk_save
 
         :param users:
         :return: sequence of inserted primary keys
         """
-        tweeters = [self._twitter_user_mapper(u) for u in users]
-        existing_user_ids = set(
-            u.user_id
-            for u in self.all_tweeter_user_id([r.user_id for r in tweeters]))
-        new_tweeters = set(u for u in tweeters
-                           if u.user_id not in existing_user_ids)
-        self.bulk_save(new_tweeters)
-        return [
-            r.id for r in self.all_tweeter_user_id(
-                [u.user_id for u in new_tweeters])
-        ]
+        existing_tweeter_ids = self.all_tweeter_id([u.id for u in users])
+        if not existing_tweeter_ids:
+            new_tweeters = set(self._twitter_user_mapper(u) for u in users)
+        else:
+            existing_tweeter_user_ids = set(
+                self.lookup_tweeter(i).user_id for i in existing_tweeter_ids)
+            new_tweeters = set(
+                self._twitter_user_mapper(u) for u in users
+                if u.id not in existing_tweeter_user_ids)
 
-    def lookup_tweeter_id(self, pk_id: int) -> Optional[Tweeter]:
+        self.bulk_save(new_tweeters)
+        return self.all_tweeter_id([u.user_id for u in new_tweeters])
+
+    def lookup_tweeter(self, tweeter_id: int) -> Optional[Tweeter]:
         """get `Tweeter` instance by primary key
 
-        :param pk_id: table 'tweeter' primary key
-        :return: a `Tweeter` instance of None if no match
-        """
-        return self.session.query(Tweeter).filter(Tweeter.id == pk_id).first()
-
-    def lookup_tweeter_user_id(self, user_id: int) -> Optional[Tweeter]:
-        """get `Tweeter` instance by column 'user_id'
-
-        :param user_id: user_id of table 'tweeter'
+        :param tweeter_id: table 'tweeter' primary key
         :return: a `Tweeter` instance of None if no match
         """
         return self.session.query(Tweeter).filter(
-            Tweeter.user_id == user_id).first()
+            Tweeter.id == tweeter_id).first()
 
-    def all_tweeter_user_id(self, user_ids: List[int]) -> List[Tweeter]:
-        """get all matched `Tweeter` object by user_id
+    def all_tweeter_id(self, user_ids: List[int]) -> Set[int]:
+        """get all matched `Tweeter` primary keys by user_id
 
         :param user_ids: user_id `list`
-        :return: list of `Tweeter` instances
+        :return: set of table 'tweeter' primary keys
         """
-        return self.session.query(Tweeter).filter(
-            Tweeter.user_id.in_(user_ids)).all()
+        return set(t[0] for t in self.session.query(Tweeter.id).filter(
+            Tweeter.user_id.in_(user_ids)).all())
 
     @_commit
-    def delete_tweeter_id(self, tweeter_id: int) -> int:
+    def delete_tweeter(self, tweeter_id: int) -> int:
         """delete from 'tweeter' by primary key, and delete from 'friendship'
         CASCADE
 
@@ -222,34 +215,42 @@ class Dao(metaclass=SingletonMeta):
         ]
         self.bulk_save((Friendship(tweeter_id, i) for i in new_followers))
 
-    def bulk_save_wumao(self, tweeter_ids: List[int]) -> List[int]:
+    def lookup_wumao(self, wumao_id: int) -> Optional[Wumao]:
+        return self.session.query(Wumao).filter(Wumao.id == wumao_id).first()
+
+    def bulk_save_wumao(self, tweeter_ids: List[int]) -> Set[int]:
         """bulk save on table 'wumao'
         refer to dao.bulk_save
 
         :param tweeter_ids:
-        :return: sequence of inserted primary keys
+        :return: set of inserted primary keys
         """
-        existing_tweeter_ids = set(u.tweeter_id
-                                   for u in self.all_wumao(tweeter_ids))
-        new_wumaos = set(
-            Wumao(i) for i in tweeter_ids if i not in existing_tweeter_ids)
+        existing_wumao_ids = self.all_wumao_id(tweeter_ids)
+        if not existing_wumao_ids:
+            new_wumaos = set(Wumao(i) for i in tweeter_ids)
+        else:
+            existing_wumao_tweeter_ids = set(
+                self.lookup_wumao(i).tweeter_id for i in existing_wumao_ids)
+            new_wumaos = set(
+                Wumao(i) for i in tweeter_ids
+                if i not in existing_wumao_tweeter_ids)
         self.bulk_save(new_wumaos)
-        return [
-            w.id for w in self.all_wumao([n.tweeter_id for n in new_wumaos])
-        ]
+        return self.all_wumao_id([n.tweeter_id for n in new_wumaos])
 
-    def all_wumao(self,
-                  tweeter_ids: Optional[List[int]] = None) -> List[Wumao]:
-        """get all `Wumao` instances, or matched by input 'tweeter' ID
+    def all_wumao_id(self,
+                     tweeter_ids: Optional[List[int]] = None) -> Set[int]:
+        """get all table 'wumao' primary keys, or matched by input 'tweeter' ID
 
         :param tweeter_ids: 'tweeter' ID list, optional
-        :return: list of `Wumao` instances
+        :return: set of primary keys of table 'wumao'
         """
-        qry = self.session.query(Wumao)
+        qry = self.session.query(Wumao.id)
         if tweeter_ids is None:
-            return qry.all()
+            return set(t[0] for t in qry.all())
         else:
-            return qry.filter(Wumao.tweeter_id.in_(tweeter_ids)).all()
+            return set(
+                t[0]
+                for t in qry.filter(Wumao.tweeter_id.in_(tweeter_ids)).all())
 
     def lookup_track(self, user_id: int, method: str) -> Track:
         return self.session.query(Track).filter(
