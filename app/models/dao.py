@@ -105,12 +105,16 @@ class Dao(metaclass=SingletonMeta):
         """
         self.session.bulk_save_objects(objects)
 
-    def bulk_save_tweeter(self, users: List[twitter.models.User]) -> Set[int]:
+    def bulk_save_tweeter(self,
+                          users: List[twitter.models.User],
+                          return_all: bool = False) -> Set[int]:
         """bulk save on table 'tweeter'
         refer to dao.bulk_save
 
         :param users:
-        :return: sequence of inserted primary keys
+        :param return_all: whether return all primary keys of the input list,
+        or only inserted ones, default False
+        :return: a set of primary keys
         """
         existing_tweeter_ids = self.all_tweeter_id([u.id for u in users])
         if not existing_tweeter_ids:
@@ -123,7 +127,10 @@ class Dao(metaclass=SingletonMeta):
                 if u.id not in existing_tweeter_user_ids)
 
         self.bulk_save(new_tweeters)
-        return self.all_tweeter_id([u.user_id for u in new_tweeters])
+        if return_all:
+            return self.all_tweeter_id([u.id for u in users])
+        else:
+            return self.all_tweeter_id([u.user_id for u in new_tweeters])
 
     def lookup_tweeter(self, tweeter_id: int) -> Optional[Tweeter]:
         """get `Tweeter` instance by primary key
@@ -244,13 +251,16 @@ class Dao(metaclass=SingletonMeta):
 
     def bulk_save_wumao(self,
                         tweeter_ids: List[int],
-                        new: bool = False) -> Set[int]:
+                        new: bool = False,
+                        return_all: bool = False) -> Set[int]:
         """bulk save on table 'wumao'
         refer to dao.bulk_save
 
         :param new:
         :param tweeter_ids:
-        :return: set of inserted primary keys
+        :param return_all: whether return all primary keys of the input list,
+        or only inserted ones, default False
+        :return: set of primary keys
         """
         [self.constrain_tweeter_exist(i) for i in tweeter_ids]
         is_new = self._is_new(new)
@@ -264,7 +274,10 @@ class Dao(metaclass=SingletonMeta):
                 Wumao(i, is_new) for i in tweeter_ids
                 if i not in existing_wumao_tweeter_ids)
         self.bulk_save(new_wumaos)
-        return self.all_wumao_id([n.tweeter_id for n in new_wumaos])
+        if return_all:
+            return self.all_wumao_id(tweeter_ids)
+        else:
+            return self.all_wumao_id([n.tweeter_id for n in new_wumaos])
 
     def all_wumao_id(self,
                      tweeter_ids: Optional[List[int]] = None) -> Set[int]:
