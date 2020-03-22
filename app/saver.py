@@ -267,33 +267,49 @@ class Saver(metaclass=SingletonMeta):
         print('all friendship of new wumaos has been added')
         return
 
-    @_sleep
-    def validate_wumao(self):
-        """validate wumao tweeter by checking if its followers or friends are
-        in the initial wumao table
+    def enlist_wumao(self) -> int:
+        """recursively save qualified tweeters into table 'wumao'
+
+        :return: loop count
+        """
+        def test(tweeter_id: int, d: Dao):
+            """check whether or not a tweeter is wumao
+
+            :param tweeter_id:
+            :param d: instance of Dao
+            :return:
+            """
+            score = 1.5 * d.follower_count(tweeter_id, d.all_wumao_tweeter_id(
+            )) + 1.0 * d.friend_count(tweeter_id, d.all_wumao_tweeter_id())
+            if score >= 4:
+                return True
+            else:
+                return False
+
+        n = 0
+        while True:
+            candidate_tweeter_ids = self.dao.all_tweeter_id(
+            ) - self.dao.all_wumao_tweeter_id()
+            new_wumao_tweeter_ids = [
+                i for i in candidate_tweeter_ids if test(i, self.dao)
+            ]
+            if not new_wumao_tweeter_ids:
+                break
+            else:
+                self.dao.bulk_save_wumao(new_wumao_tweeter_ids, new=False)
+            n += 1
+        return n
+
+    def automaton(self):
+        """full-auto wumao searching
+        finish if no wumao is enlisted after an adding friendship process
 
         :return:
         """
-        zero_user = self.dao.first_base_tweeter()
-        if zero_user is None:
-            print("all wumaos are validated")
-            return
-        else:
-            user_id = zero_user.user_id
-            print("potential wumao:", user_id)
-            related = [
-                u for u in self.tweet.get_following(user_id=user_id)
-            ] + [u for u in self.tweet.get_followers(user_id=user_id)]
-            wumaos = [u for u in related if self._is_potential_wumao(u)]
-            unique_wumaos = [
-                u for u in wumaos
-                if self.dao.lookup_tweeter_user_id(u.id) is not None
-            ]
-            if not unique_wumaos:
-                print("NO wumao")
-                self.dao.delete_tweeter_user_id(user_id)
-                self.dao.delete_base_tweeter_user_id(user_id)
-            else:
-                print("confirmed wumao")
-                self.dao.delete_base_tweeter_user_id(user_id)
-            return self.validate_wumao()
+        while True:
+            self.add_friendship()
+            n = self.enlist_wumao()
+            if n == 0:
+                break
+        print('job done')
+        return
