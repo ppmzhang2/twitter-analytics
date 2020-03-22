@@ -76,8 +76,7 @@ class TestModel(unittest.TestCase):
         tweeter_ids = self.dao.all_tweeter_id(self.USER_IDS)
         self.tweeters = [self.dao.lookup_tweeter(i) for i in tweeter_ids]
         self.tracks = [
-            self.dao.lookup_track(track.user_id, track.method)
-            for track in tracks_
+            self.dao.lookup_track(track.user_id) for track in tracks_
         ]
         self.old_wumao_tweeter_ids = [u.id for u in self.tweeters][:2]
         self.new_wumao_tweeter_ids = [u.id for u in self.tweeters][2:4]
@@ -208,20 +207,21 @@ class TestModel(unittest.TestCase):
         # delete
         self.assertEqual(set(TestModel.CURSORS),
                          {track_1.cursor, track_2.cursor})
-        self.dao.delete_track(track_1.user_id, track_1.method)
-        self.assertEqual(
-            None, self.dao.lookup_track(track_1.user_id, track_1.method))
+        self.dao.delete_track(track_1.user_id)
+        self.assertEqual(None, self.dao.lookup_track(track_1.user_id))
+        self.assertEqual(track_2, self.dao.any_track())
+        self.dao.delete_track(track_2.user_id)
+        self.assertEqual(None, self.dao.lookup_track(track_2.user_id))
+        self.assertEqual(None, self.dao.any_track())
         # multiple tracks update
-        self.dao.update_track(track_1.user_id, track_1.method, track_1.cursor)
-        self.dao.update_track(track_1.user_id, track_1.method, track_1.cursor)
-        self.dao.update_track(track_2.user_id, track_2.method, track_2.cursor)
-        self.dao.update_track(track_2.user_id, track_2.method, track_2.cursor)
-        self.assertEqual(
-            track_1.cursor,
-            self.dao.lookup_track(track_1.user_id, track_1.method).cursor)
-        self.assertEqual(
-            track_2.cursor,
-            self.dao.lookup_track(track_2.user_id, track_2.method).cursor)
+        self.dao.upsert_track(track_1.user_id, track_1.method, track_1.cursor)
+        self.dao.upsert_track(track_1.user_id, track_1.method, track_1.cursor)
+        self.dao.upsert_track(track_2.user_id, track_2.method, track_2.cursor)
+        self.dao.upsert_track(track_2.user_id, track_2.method, track_2.cursor)
+        self.assertEqual(track_1.cursor,
+                         self.dao.lookup_track(track_1.user_id).cursor)
+        self.assertEqual(track_2.cursor,
+                         self.dao.lookup_track(track_2.user_id).cursor)
 
 
 if __name__ == '__main__':

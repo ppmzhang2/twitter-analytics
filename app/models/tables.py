@@ -76,7 +76,7 @@ class Track(Base):
     __tablename__ = 'track'
 
     id = sa.Column(sa.Integer, primary_key=True)
-    user_id = sa.Column(sa.BigInteger)
+    user_id = sa.Column(sa.BigInteger, unique=True, index=True)
     method = sa.Column(sa.String)
     cursor = sa.Column(sa.BigInteger)
 

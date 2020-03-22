@@ -270,37 +270,34 @@ class Dao(metaclass=SingletonMeta):
         if qry.first() is not None:
             qry.update({Wumao.is_new: is_new})
 
-    def lookup_track(self, user_id: int, method: str) -> Track:
+    def any_track(self) -> Track:
+        return self.session.query(Track).first()
+
+    def lookup_track(self, user_id: int) -> Track:
         return self.session.query(Track).filter(
-            Track.user_id == user_id, Track.method == method).first()
+            Track.user_id == user_id).first()
 
     @_commit
-    def delete_track(self, user_id: int, method: str) -> int:
-        """delete from 'track' records with specific screen name and paged
+    def delete_track(self, user_id: int) -> int:
+        """delete from 'track' records by providing user_id
         search method
 
         :param user_id: twitter account ID
-        :param method: search function name
         :return: deleted number of records
         """
         return self.session.query(Track).filter(
-            Track.user_id == user_id, Track.method == method).delete()
+            Track.user_id == user_id).delete()
 
     @_commit
-    def add_track(self, user_id: int, method: str, cur: int) -> None:
-        return self.session.add(Track(user_id, method, cur))
-
-    @_commit
-    def update_track(self, user_id: int, method: str, cur: int) -> None:
-        """update 'track' with latest cursor
+    def upsert_track(self, user_id: int, method: str, cur: int) -> None:
+        """update or insert 'track' with latest cursor
 
         :param user_id: twitter account ID
         :param method: search function name
         :param cur: cursor number
         :return:
         """
-        qry = self.session.query(Track).filter(Track.user_id == user_id,
-                                               Track.method == method)
+        qry = self.session.query(Track).filter(Track.user_id == user_id)
         if qry.first() is None:
             self.session.add(Track(user_id, method, cur))
         else:
