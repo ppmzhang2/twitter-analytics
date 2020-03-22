@@ -12,14 +12,10 @@ from config import Config
 
 __all__ = ['Dao']
 
-# Let's also configure it to echo everything it does to the screen.
-engine = create_engine('sqlite:///{0}'.format(Config.APP_DB), echo=True)
 
-# use session_factory() to get a new Session
-_SessionFactory = sessionmaker(bind=engine)
-
-
-def session_factory():
+def session_factory(echo: bool):
+    engine = create_engine('sqlite:///{0}'.format(Config.APP_DB), echo=echo)
+    _SessionFactory = sessionmaker(bind=engine)
     Base.metadata.create_all(engine)
     return _SessionFactory()
 
@@ -46,8 +42,8 @@ class SingletonMeta(type):
 class Dao(metaclass=SingletonMeta):
     __slots__ = ['session']
 
-    def __init__(self):
-        self.session = session_factory()
+    def __init__(self, echo=False):
+        self.session = session_factory(echo)
 
     @staticmethod
     def _is_new(flag: bool):
