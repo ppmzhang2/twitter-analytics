@@ -83,6 +83,16 @@ class Dao(metaclass=SingletonMeta):
         self.session.query(Track).filter(
             Track.tweeter_id == tweeter_id).delete()
 
+    def _constrain_tweeter_exist(self, tweeter_id: int) -> None:
+        """check provided primary key of table 'tweeter', and raise value error
+        if the PK_ID does NOT exist
+
+        :param tweeter_id:
+        :return:
+        """
+        if self.lookup_tweeter(tweeter_id) is None:
+            raise ValueError('PK ID provided does NOT Exist!')
+
     @_commit
     def reset_db(self) -> None:
         self.session.query(Track).delete()
@@ -199,23 +209,31 @@ class Dao(metaclass=SingletonMeta):
 
     @_commit
     def follow(self, tweeter_id: int, author_id: int) -> None:
+        self._constrain_tweeter_exist(tweeter_id)
+        self._constrain_tweeter_exist(author_id)
         if not self.is_following(tweeter_id, author_id):
             self.session.add(Friendship(author_id, tweeter_id))
 
     @_commit
     def un_follow(self, tweeter_id: int, author_id: int) -> None:
+        self._constrain_tweeter_exist(tweeter_id)
+        self._constrain_tweeter_exist(author_id)
         if self.is_following(tweeter_id, author_id):
             self.session.query(Friendship).filter(
                 Friendship.author_id == author_id,
                 Friendship.follower_id == tweeter_id).delete()
 
     def bulk_follow(self, tweeter_id: int, authors: List[int]) -> None:
+        self._constrain_tweeter_exist(tweeter_id)
+        [self._constrain_tweeter_exist(i) for i in authors]
         new_authors = [
             i for i in authors if i not in self.friends_id(tweeter_id)
         ]
         self.bulk_save((Friendship(i, tweeter_id) for i in new_authors))
 
     def bulk_attract(self, tweeter_id: int, followers: List[int]) -> None:
+        self._constrain_tweeter_exist(tweeter_id)
+        [self._constrain_tweeter_exist(i) for i in followers]
         new_followers = [
             i for i in followers if i not in self.followers_id(tweeter_id)
         ]
@@ -238,6 +256,7 @@ class Dao(metaclass=SingletonMeta):
         :param tweeter_ids:
         :return: set of inserted primary keys
         """
+        [self._constrain_tweeter_exist(i) for i in tweeter_ids]
         is_new = self._is_new(new)
         existing_wumao_ids = self.all_wumao_id(tweeter_ids)
         if not existing_wumao_ids:
@@ -299,6 +318,7 @@ class Dao(metaclass=SingletonMeta):
         :param cur: cursor number
         :return:
         """
+        self._constrain_tweeter_exist(tweeter_id)
         qry = self.session.query(Track).filter(Track.tweeter_id == tweeter_id)
         if qry.first() is None:
             self.session.add(Track(tweeter_id, method, cur))
