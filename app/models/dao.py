@@ -294,6 +294,9 @@ class Dao(metaclass=SingletonMeta):
                 t[0]
                 for t in qry.filter(Wumao.tweeter_id.in_(tweeter_ids)).all())
 
+    def all_wumao_tweeter_id(self) -> Set[int]:
+        return set(t[0] for t in self.session.query(Wumao.tweeter_id).all())
+
     @_commit
     def upsert_wumao(self, tweeter_id: int, new: bool):
         self.constrain_tweeter_exist(tweeter_id)

@@ -134,7 +134,7 @@ class TestModel(unittest.TestCase):
           * dao.bulk_attract
           * dao.friend_count
           * dao.follower_count
-          * dao.delete_tweeter_id
+          * dao.delete_tweeter
 
         :return:
         """
@@ -171,9 +171,9 @@ class TestModel(unittest.TestCase):
         """checks DAO methods of table 'wumao' and its 'on-delete' constrain
 
         methods
-          * dao.all_wumao
-          * dao.wumao_tweeter_ids
-          * dao.delete_tweeter_id
+          * dao.all_wumao_id
+          * dao.all_wumao_tweeter_id
+          * dao.delete_tweeter
 
         :return:
         """
@@ -189,6 +189,11 @@ class TestModel(unittest.TestCase):
         self.dao.delete_tweeter(tweeter_id_3)
         self.assertEqual({new_wumao_2.id, old_wumao_1.id, old_wumao_2.id},
                          self.dao.all_wumao_id())
+        self.assertEqual(
+            {
+                new_wumao_2.tweeter_id, old_wumao_1.tweeter_id,
+                old_wumao_2.tweeter_id
+            }, self.dao.all_wumao_tweeter_id())
         # update
         self.dao.upsert_wumao(new_wumao_2.tweeter_id, False)
         self.assertEqual(None, self.dao.any_wumao(True))
