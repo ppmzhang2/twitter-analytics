@@ -190,9 +190,9 @@ class TestModel(unittest.TestCase):
         self.assertEqual({new_wumao_2.id, old_wumao_1.id, old_wumao_2.id},
                          self.dao.all_wumao_id())
         # update
-        self.dao.update_wumao(new_wumao_2.id, False)
+        self.dao.upsert_wumao(new_wumao_2.tweeter_id, False)
         self.assertEqual(None, self.dao.any_wumao(True))
-        self.dao.update_wumao(old_wumao_1.id, True)
+        self.dao.upsert_wumao(old_wumao_1.tweeter_id, True)
         self.assertEqual(True, self.dao.lookup_wumao(old_wumao_1.id).is_new)
         self.assertEqual(False, self.dao.lookup_wumao(new_wumao_2.id).is_new)
 

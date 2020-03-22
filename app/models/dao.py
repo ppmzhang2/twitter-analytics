@@ -281,10 +281,14 @@ class Dao(metaclass=SingletonMeta):
                 t[0]
                 for t in qry.filter(Wumao.tweeter_id.in_(tweeter_ids)).all())
 
-    def update_wumao(self, wumao_id: int, new: bool):
+    @_commit
+    def upsert_wumao(self, tweeter_id: int, new: bool):
+        self.constrain_tweeter_exist(tweeter_id)
         is_new = self._is_new(new)
-        qry = self.session.query(Wumao.is_new).filter(Wumao.id == wumao_id)
-        if qry.first() is not None:
+        qry = self.session.query(Wumao).filter(Wumao.tweeter_id == tweeter_id)
+        if qry.first() is None:
+            self.session.add(Wumao(tweeter_id, is_new))
+        else:
             qry.update({Wumao.is_new: is_new})
 
     def any_track(self) -> Track:
