@@ -63,9 +63,11 @@ class Wumao(Base):
                                       ondelete='CASCADE'),
                            unique=True,
                            index=True)
+    is_new = sa.Column(sa.SmallInteger, default=0)
 
-    def __init__(self, tweeter_id: int):
+    def __init__(self, tweeter_id: int, is_new: int = 0):
         self.tweeter_id = tweeter_id
+        self.is_new = is_new
 
 
 class Track(Base):

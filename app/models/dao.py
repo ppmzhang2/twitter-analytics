@@ -50,6 +50,10 @@ class Dao(metaclass=SingletonMeta):
         self.session = session_factory()
 
     @staticmethod
+    def _is_new(flag: bool):
+        return {True: 1, False: 0}[flag]
+
+    @staticmethod
     def _parse_date(timestamp):
         """parse tweet "created_at" timestamp string
 
@@ -215,24 +219,32 @@ class Dao(metaclass=SingletonMeta):
         ]
         self.bulk_save((Friendship(tweeter_id, i) for i in new_followers))
 
+    def any_wumao(self, new: bool = False) -> Optional[Wumao]:
+        is_new = self._is_new(new)
+        return self.session.query(Wumao).filter(Wumao.is_new == is_new).first()
+
     def lookup_wumao(self, wumao_id: int) -> Optional[Wumao]:
         return self.session.query(Wumao).filter(Wumao.id == wumao_id).first()
 
-    def bulk_save_wumao(self, tweeter_ids: List[int]) -> Set[int]:
+    def bulk_save_wumao(self,
+                        tweeter_ids: List[int],
+                        new: bool = False) -> Set[int]:
         """bulk save on table 'wumao'
         refer to dao.bulk_save
 
+        :param new:
         :param tweeter_ids:
         :return: set of inserted primary keys
         """
+        is_new = self._is_new(new)
         existing_wumao_ids = self.all_wumao_id(tweeter_ids)
         if not existing_wumao_ids:
-            new_wumaos = set(Wumao(i) for i in tweeter_ids)
+            new_wumaos = set(Wumao(i, is_new) for i in tweeter_ids)
         else:
             existing_wumao_tweeter_ids = set(
                 self.lookup_wumao(i).tweeter_id for i in existing_wumao_ids)
             new_wumaos = set(
-                Wumao(i) for i in tweeter_ids
+                Wumao(i, is_new) for i in tweeter_ids
                 if i not in existing_wumao_tweeter_ids)
         self.bulk_save(new_wumaos)
         return self.all_wumao_id([n.tweeter_id for n in new_wumaos])
@@ -251,6 +263,12 @@ class Dao(metaclass=SingletonMeta):
             return set(
                 t[0]
                 for t in qry.filter(Wumao.tweeter_id.in_(tweeter_ids)).all())
+
+    def update_wumao(self, wumao_id: int, new: bool):
+        is_new = self._is_new(new)
+        qry = self.session.query(Wumao.is_new).filter(Wumao.id == wumao_id)
+        if qry.first() is not None:
+            qry.update({Wumao.is_new: is_new})
 
     def lookup_track(self, user_id: int, method: str) -> Track:
         return self.session.query(Track).filter(

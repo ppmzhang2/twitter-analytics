@@ -54,12 +54,14 @@ class TestModel(unittest.TestCase):
 
     def setUp(self):
         """save to DB, get variables of table instances:
-        5 tweeters, 2 tracks, 3 wumaos
+        5 tweeters, 2 tracks, 2 old wumaos, 2 new wumao
         instance variables:
           * tweeters
           * tracks
-          * wumao_tweeter_ids
-          * wumaos
+          * old_wumao_tweeter_ids
+          * new_wumao_tweeter_ids
+          * old_wumaos
+          * new_wumaos
 
         :return:
         """
@@ -77,10 +79,13 @@ class TestModel(unittest.TestCase):
             self.dao.lookup_track(track.user_id, track.method)
             for track in tracks_
         ]
-        self.wumao_tweeter_ids = [u.id for u in self.tweeters][:3]
-        self.dao.bulk_save_wumao(self.wumao_tweeter_ids)
-        wumao_ids = self.dao.all_wumao_id()
-        self.wumaos = [self.dao.lookup_wumao(i) for i in wumao_ids]
+        self.old_wumao_tweeter_ids = [u.id for u in self.tweeters][:2]
+        self.new_wumao_tweeter_ids = [u.id for u in self.tweeters][2:4]
+        self.dao.bulk_save_wumao(self.old_wumao_tweeter_ids, new=False)
+        self.dao.bulk_save_wumao(self.new_wumao_tweeter_ids, new=True)
+        wumaos = [self.dao.lookup_wumao(i) for i in self.dao.all_wumao_id()]
+        self.old_wumaos = [w for w in wumaos if w.is_new == 0]
+        self.new_wumaos = [w for w in wumaos if w.is_new == 1]
         print('setUp ended')
 
     def tearDown(self):
@@ -98,7 +103,7 @@ class TestModel(unittest.TestCase):
         """
         self.assertEqual(set(), self.dao.bulk_save_tweeter(self.USERS))
         self.assertEqual(set(),
-                         self.dao.bulk_save_wumao(self.wumao_tweeter_ids))
+                         self.dao.bulk_save_wumao(self.old_wumao_tweeter_ids))
 
     def test_tweeter(self):
         """checks DAO methods on table 'tweeter'
@@ -171,13 +176,22 @@ class TestModel(unittest.TestCase):
         """
         tweeter_id_1, tweeter_id_2, tweeter_id_3, tweeter_id_4, tweeter_id_5 = (
             u.id for u in self.tweeters)
-        wumao_1, wumao_2, wumao_3 = self.wumaos
-        self.assertEqual(
-            set(self.wumao_tweeter_ids),
-            {wumao_1.tweeter_id, wumao_2.tweeter_id, wumao_3.tweeter_id})
+        old_wumao_1, old_wumao_2 = self.old_wumaos
+        new_wumao_1, new_wumao_2 = self.new_wumaos
+        self.assertEqual(set(self.old_wumao_tweeter_ids),
+                         {old_wumao_1.tweeter_id, old_wumao_2.tweeter_id})
+        self.assertEqual(set(self.new_wumao_tweeter_ids),
+                         {new_wumao_1.tweeter_id, new_wumao_2.tweeter_id})
         # on-delete constrain
         self.dao.delete_tweeter(tweeter_id_3)
-        self.assertEqual({wumao_1.id, wumao_2.id}, self.dao.all_wumao_id())
+        self.assertEqual({new_wumao_2.id, old_wumao_1.id, old_wumao_2.id},
+                         self.dao.all_wumao_id())
+        # update
+        self.dao.update_wumao(new_wumao_2.id, False)
+        self.assertEqual(None, self.dao.any_wumao(True))
+        self.dao.update_wumao(old_wumao_1.id, True)
+        self.assertEqual(True, self.dao.lookup_wumao(old_wumao_1.id).is_new)
+        self.assertEqual(False, self.dao.lookup_wumao(new_wumao_2.id).is_new)
 
     def test_track(self):
         """checks DAO methods of table 'track'
