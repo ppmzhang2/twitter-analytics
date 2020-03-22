@@ -218,16 +218,19 @@ class TestModel(unittest.TestCase):
         self.assertEqual(None, self.dao.lookup_track(track_2.tweeter_id))
         self.assertEqual(None, self.dao.any_track())
         # multiple tracks update
+        # overwrite track_1 with track_2's method & cursor
         self.dao.upsert_track(track_1.tweeter_id, track_1.method,
                               track_1.cursor)
-        self.dao.upsert_track(track_1.tweeter_id, track_1.method,
-                              track_1.cursor)
-        self.dao.upsert_track(track_2.tweeter_id, track_2.method,
+        self.dao.upsert_track(track_1.tweeter_id, track_2.method,
                               track_2.cursor)
         self.dao.upsert_track(track_2.tweeter_id, track_2.method,
                               track_2.cursor)
-        self.assertEqual(track_1.cursor,
+        self.dao.upsert_track(track_2.tweeter_id, track_2.method,
+                              track_2.cursor)
+        self.assertEqual(track_2.cursor,
                          self.dao.lookup_track(track_1.tweeter_id).cursor)
+        self.assertEqual(track_2.method,
+                         self.dao.lookup_track(track_1.tweeter_id).method)
         self.assertEqual(track_2.cursor,
                          self.dao.lookup_track(track_2.tweeter_id).cursor)
 

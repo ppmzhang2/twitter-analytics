@@ -323,4 +323,4 @@ class Dao(metaclass=SingletonMeta):
         if qry.first() is None:
             self.session.add(Track(tweeter_id, method, cur))
         else:
-            qry.update({Track.cursor: cur})
+            qry.update({Track.method: method, Track.cursor: cur})
