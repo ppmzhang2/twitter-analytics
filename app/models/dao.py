@@ -93,14 +93,24 @@ class Dao(metaclass=SingletonMeta):
         """
         self.session.bulk_save_objects(objects)
 
-    def bulk_save_tweeter(self, users: List[twitter.models.User]) -> None:
+    def bulk_save_tweeter(self, users: List[twitter.models.User]) -> List[int]:
+        """bulk save on table 'tweeter'
+        refer to dao.bulk_save
+
+        :param users:
+        :return: sequence of inserted primary keys
+        """
         tweeters = [self._twitter_user_mapper(u) for u in users]
         existing_user_ids = set(
             u.user_id
             for u in self.all_tweeter_user_id([r.user_id for r in tweeters]))
         new_tweeters = set(u for u in tweeters
                            if u.user_id not in existing_user_ids)
-        return self.bulk_save(new_tweeters)
+        self.bulk_save(new_tweeters)
+        return [
+            r.id for r in self.all_tweeter_user_id(
+                [u.user_id for u in new_tweeters])
+        ]
 
     def lookup_tweeter_id(self, pk_id: int) -> Optional[Tweeter]:
         """get `Tweeter` instance by primary key
@@ -212,12 +222,21 @@ class Dao(metaclass=SingletonMeta):
         ]
         self.bulk_save((Friendship(tweeter_id, i) for i in new_followers))
 
-    def bulk_save_wumao(self, tweeter_ids: List[int]) -> None:
+    def bulk_save_wumao(self, tweeter_ids: List[int]) -> List[int]:
+        """bulk save on table 'wumao'
+        refer to dao.bulk_save
+
+        :param tweeter_ids:
+        :return: sequence of inserted primary keys
+        """
         existing_tweeter_ids = set(u.tweeter_id
                                    for u in self.all_wumao(tweeter_ids))
         new_wumaos = set(
             Wumao(i) for i in tweeter_ids if i not in existing_tweeter_ids)
-        return self.bulk_save(new_wumaos)
+        self.bulk_save(new_wumaos)
+        return [
+            w.id for w in self.all_wumao([n.tweeter_id for n in new_wumaos])
+        ]
 
     def all_wumao(self,
                   tweeter_ids: Optional[List[int]] = None) -> List[Wumao]:
@@ -227,10 +246,10 @@ class Dao(metaclass=SingletonMeta):
         :return: list of `Wumao` instances
         """
         qry = self.session.query(Wumao)
-        if tweeter_ids:
-            return qry.filter(Wumao.tweeter_id.in_(tweeter_ids)).all()
-        else:
+        if tweeter_ids is None:
             return qry.all()
+        else:
+            return qry.filter(Wumao.tweeter_id.in_(tweeter_ids)).all()
 
     def lookup_track(self, user_id: int, method: str) -> Track:
         return self.session.query(Track).filter(

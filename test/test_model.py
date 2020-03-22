@@ -20,6 +20,17 @@ class TestModel(unittest.TestCase):
     FRIEND_COUNTS = (3215, 0, 782, 3295, 3)
     METHODS = ('get_following_paged', 'get_followers_paged')
     CURSORS = (1656974570956055733, 1656809280611943888)
+    USERS = [
+        User(id=user_id,
+             screen_name=screen_name,
+             name=name,
+             created_at=dt,
+             followers_count=follower_count,
+             friends_count=friend_count)
+        for user_id, screen_name, name, dt, follower_count, friend_count in
+        zip(USER_IDS, SCREEN_NAMES, NAMES, CREATED_ATS, FOLLOWER_COUNTS,
+            FRIEND_COUNTS)
+    ]
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -43,30 +54,15 @@ class TestModel(unittest.TestCase):
           * wumao_tweeter_ids
           * wumaos
 
-        methods:
-          * dao.bulk_save
-          * dao.bulk_save_tweeter
-
         :return:
         """
         print('setUp started')
-        users = [
-            User(id=user_id,
-                 screen_name=screen_name,
-                 name=name,
-                 created_at=dt,
-                 followers_count=follower_count,
-                 friends_count=friend_count)
-            for user_id, screen_name, name, dt, follower_count, friend_count in
-            zip(self.USER_IDS, self.SCREEN_NAMES, self.NAMES, self.CREATED_ATS,
-                self.FOLLOWER_COUNTS, self.FRIEND_COUNTS)
-        ]
+
         tracks_ = [
             Track(user_id, method, cursor) for user_id, method, cursor in zip(
                 self.USER_IDS, self.METHODS, self.CURSORS)
         ]
-        self.dao.bulk_save_tweeter(users)
-        self.dao.bulk_save_tweeter(users)
+        self.dao.bulk_save_tweeter(self.USERS)
         self.dao.bulk_save(tracks_)
         self.tweeters = self.dao.all_tweeter_user_id(self.USER_IDS)
         self.tracks = [
@@ -75,7 +71,6 @@ class TestModel(unittest.TestCase):
         ]
         self.wumao_tweeter_ids = [u.id for u in self.tweeters][:3]
         self.dao.bulk_save_wumao(self.wumao_tweeter_ids)
-        self.dao.bulk_save_wumao(self.wumao_tweeter_ids)
         self.wumaos = self.dao.all_wumao()
         print('setUp ended')
 
@@ -83,6 +78,20 @@ class TestModel(unittest.TestCase):
         print('tearDown started')
         self.dao.reset_db()
         print('tearDown ended')
+
+    def test_bulk_save(self):
+        """bulk save
+
+        methods:
+          * dao.bulk_save
+          * dao.bulk_save_tweeter
+        :return:
+        """
+        print('aaa')
+        print(self.dao.all_tweeter_user_id(self.USER_IDS))
+        print(self.dao.all_wumao())
+        self.assertEqual([], self.dao.bulk_save_tweeter(self.USERS))
+        self.assertEqual([], self.dao.bulk_save_wumao(self.wumao_tweeter_ids))
 
     def test_tweeter(self):
         """checks DAO methods on table 'tweeter'
