@@ -22,33 +22,6 @@ class TestModel(unittest.TestCase):
         print('setUpClass started')
         cls.dao = Dao()
         cls.dao.reset_db()
-        tweeters_ = [
-            Tweeter(user_id, screen_name, name, dt, follower_count,
-                    friend_count)
-            for user_id, screen_name, name, dt, follower_count, friend_count in
-            zip(cls.USER_IDS, cls.SCREEN_NAMES, cls.NAMES, cls.DATES,
-                cls.FOLLOWER_COUNTS, cls.FRIEND_COUNTS)
-        ]
-        tracks_ = [
-            Track(user_id, method, cursor) for user_id, method, cursor in zip(
-                cls.USER_IDS, cls.METHODS, cls.CURSORS)
-        ]
-        # get class variables of table instances
-        # bulk save: 5 tweeters, 2 tracks
-        # methods
-        #   1. dao.bulk_save
-        #   2. dao.bulk_save_tweeter
-        cls.dao.bulk_save_tweeter(tweeters_)
-        cls.dao.bulk_save_tweeter(tweeters_)
-        cls.dao.bulk_save(tracks_)
-        cls.tweeters = cls.dao.all_tweeter_user_id(cls.USER_IDS)
-        cls.tracks = [
-            cls.dao.lookup_track(track.user_id, track.method)
-            for track in tracks_
-        ]
-        cls.wumao_tweeter_ids = [u.id for u in cls.tweeters][:3]
-        cls.dao.bulk_save_wumao(cls.wumao_tweeter_ids)
-        cls.wumaos = cls.dao.all_wumao()
         print('setUpClass ended')
 
     @classmethod
@@ -58,36 +31,77 @@ class TestModel(unittest.TestCase):
         print('tearDownClass ended')
 
     def setUp(self):
-        pass
+        """save to DB, get class variables of table instances:
+        5 tweeters, 2 tracks, 3 wumaos
 
-    def tearDown(self):
-        pass
-
-    def test_tweeter(self):
-        """checks DAO methods on table 'tweeter', its many-to-many junction
-        table 'friendship' and its 'on-delete' constrain
+        methods:
+          * dao.bulk_save
+          * dao.bulk_save_tweeter
 
         :return:
         """
-        # initialize & preparation
-        tweeter_id_1, tweeter_id_2, tweeter_id_3, tweeter_id_4, tweeter_id_5 = (
-            u.id for u in self.tweeters)
-        # find all tweeter
-        # methods:
-        #   1. dao.lookup_tweeter_user_id
-        #   2. dao.all_tweeter_user_id
+        print('setUp started')
+        tweeters_ = [
+            Tweeter(user_id, screen_name, name, dt, follower_count,
+                    friend_count)
+            for user_id, screen_name, name, dt, follower_count, friend_count in
+            zip(self.USER_IDS, self.SCREEN_NAMES, self.NAMES, self.DATES,
+                self.FOLLOWER_COUNTS, self.FRIEND_COUNTS)
+        ]
+        tracks_ = [
+            Track(user_id, method, cursor) for user_id, method, cursor in zip(
+                self.USER_IDS, self.METHODS, self.CURSORS)
+        ]
+        self.dao.bulk_save_tweeter(tweeters_)
+        self.dao.bulk_save_tweeter(tweeters_)
+        self.dao.bulk_save(tracks_)
+        self.tweeters = self.dao.all_tweeter_user_id(self.USER_IDS)
+        self.tracks = [
+            self.dao.lookup_track(track.user_id, track.method)
+            for track in tracks_
+        ]
+        self.wumao_tweeter_ids = [u.id for u in self.tweeters][:3]
+        self.dao.bulk_save_wumao(self.wumao_tweeter_ids)
+        self.wumaos = self.dao.all_wumao()
+        print('setUp ended')
+
+    def tearDown(self):
+        print('tearDown started')
+        self.dao.reset_db()
+        print('tearDown ended')
+
+    def test_tweeter(self):
+        """checks DAO methods on table 'tweeter'
+
+        methods:
+          * dao.lookup_tweeter_user_id
+          * dao.all_tweeter_user_id
+
+        :return:
+        """
         set_1 = set(
             self.dao.lookup_tweeter_user_id(user_id)
             for user_id in TestModel.USER_IDS)
         set_2 = set(self.dao.all_tweeter_user_id(TestModel.USER_IDS))
         self.assertEqual(set_1, set_2)
-        # follow: 1 follows 2, 3, 4; 5 follows 1
-        # methods:
-        #   1. dao.follow
-        #   2. dao.bulk_follow
-        #   3. dao.bulk_attract
-        #   4. dao.friend_count
-        #   5. dao.follower_count
+
+    def test_friendship(self):
+        """checks many-to-many junction table 'friendship' and its 'on-delete'
+        constrain
+
+        friendship: 1 follows 2, 3, 4; 5 follows 1
+        methods:
+          * dao.follow
+          * dao.bulk_follow
+          * dao.bulk_attract
+          * dao.friend_count
+          * dao.follower_count
+          * dao.delete_tweeter_id
+
+        :return:
+        """
+        tweeter_id_1, tweeter_id_2, tweeter_id_3, tweeter_id_4, tweeter_id_5 = (
+            u.id for u in self.tweeters)
         self.dao.follow(tweeter_id_5, tweeter_id_1)
         self.dao.bulk_follow(tweeter_id_1, [tweeter_id_2, tweeter_id_3])
         self.dao.bulk_attract(tweeter_id_4, [tweeter_id_1])
@@ -110,39 +124,54 @@ class TestModel(unittest.TestCase):
                          self.dao.follower_count(tweeter_id_1, [tweeter_id_1]))
         self.assertEqual(0, self.dao.follower_count(999))
         # on-delete constrain
-        # methods:
-        #   1. dao.delete_tweeter_id
-        #   2. dao.all_wumao
-        wumao_1, wumao_2, wumao_3 = self.wumaos
-        self.assertEqual(
-            set(self.wumao_tweeter_ids),
-            {wumao_1.tweeter_id, wumao_2.tweeter_id, wumao_3.tweeter_id})
         self.dao.delete_tweeter_id(tweeter_id_3)
         self.assertEqual([tweeter_id_2, tweeter_id_4],
                          self.dao.friends_id(tweeter_id_1))
         self.assertEqual([tweeter_id_5], self.dao.followers_id(tweeter_id_1))
+
+    def test_wumao(self):
+        """checks DAO methods of table 'wumao' and its 'on-delete' constrain
+
+        methods
+          * dao.all_wumao
+          * dao.wumao_tweeter_ids
+          * dao.delete_tweeter_id
+
+        :return:
+        """
+        tweeter_id_1, tweeter_id_2, tweeter_id_3, tweeter_id_4, tweeter_id_5 = (
+            u.id for u in self.tweeters)
+        wumao_1, wumao_2, wumao_3 = self.wumaos
+        self.assertEqual(
+            set(self.wumao_tweeter_ids),
+            {wumao_1.tweeter_id, wumao_2.tweeter_id, wumao_3.tweeter_id})
+        # on-delete constrain
+        self.dao.delete_tweeter_id(tweeter_id_3)
         self.assertEqual({wumao_1, wumao_2}, set(self.dao.all_wumao()))
 
     def test_track(self):
+        """checks DAO methods of table 'track'
+
+        methods:
+          * dao.lookup_track
+          * dao.delete_track
+          * dao.update_track
+
+        :return:
+        """
         # initialize & preparation
         track_1, track_2 = self.tracks
         # delete
-        # methods:
-        #   1. dao.lookup_track
-        #   2. dao.delete_track
         self.assertEqual(set(TestModel.CURSORS),
                          {track_1.cursor, track_2.cursor})
         self.dao.delete_track(track_1.user_id, track_1.method)
         self.assertEqual(
             None, self.dao.lookup_track(track_1.user_id, track_1.method))
         # multiple tracks update
-        # methods:
-        #   1. dao.update_track
         self.dao.update_track(track_1.user_id, track_1.method, track_1.cursor)
         self.dao.update_track(track_1.user_id, track_1.method, track_1.cursor)
         self.dao.update_track(track_2.user_id, track_2.method, track_2.cursor)
         self.dao.update_track(track_2.user_id, track_2.method, track_2.cursor)
-        # check existence
         self.assertEqual(
             track_1.cursor,
             self.dao.lookup_track(track_1.user_id, track_1.method).cursor)
