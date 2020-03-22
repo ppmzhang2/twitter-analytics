@@ -141,14 +141,19 @@ class Dao(metaclass=SingletonMeta):
         return self.session.query(Tweeter).filter(
             Tweeter.id == tweeter_id).first()
 
-    def all_tweeter_id(self, user_ids: List[int]) -> Set[int]:
-        """get all matched `Tweeter` primary keys by user_id
+    def all_tweeter_id(self, user_ids: Optional[List[int]] = None) -> Set[int]:
+        """get matched `Tweeter` primary keys by user_id list provided, or
+        all PKIDs
 
         :param user_ids: user_id `list`
         :return: set of table 'tweeter' primary keys
         """
-        return set(t[0] for t in self.session.query(Tweeter.id).filter(
-            Tweeter.user_id.in_(user_ids)).all())
+        qry = self.session.query(Tweeter.id)
+        if user_ids is None:
+            return set(t[0] for t in qry.all())
+        else:
+            return set(
+                t[0] for t in qry.filter(Tweeter.user_id.in_(user_ids)).all())
 
     @_commit
     def delete_tweeter(self, tweeter_id: int) -> int:
