@@ -11,7 +11,12 @@ class TestModel(unittest.TestCase):
     USER_IDS = (12345678901, 12345678902, 12345678903, 12345678904,
                 12345678905)
     SCREEN_NAMES = ('user_1', 'user_2', 'user_3', 'user_4', 'user_5')
-    NAMES = ('name 1', 'name 2', 'name 3', 'name 4', 'name 5')
+    NAMES = ('name 1', '五毛外宣部副部长\U0001f1e8\U0001f1f3', 'name 3', 'name 4',
+             'name 5')
+    DESCRIPTIONS = (
+        '予人玫瑰 手有餘香', '北京摄影老顽童\U0001f1e8\U0001f1f3',
+        'spread positive energy, let the world understand China! \n再艰难，爱不会离开！',
+        '', '')
     CREATED_ATS = ('Tue Mar 29 08:11:25 +0000 2011',
                    'Tue Mar 29 08:11:25 +0000 2020',
                    'Tue Mar 29 08:11:25 +0000 2020',
@@ -25,12 +30,13 @@ class TestModel(unittest.TestCase):
         User(id=user_id,
              screen_name=screen_name,
              name=name,
+             description=desc,
              created_at=dt,
              followers_count=follower_count,
              friends_count=friend_count)
-        for user_id, screen_name, name, dt, follower_count, friend_count in
-        zip(USER_IDS, SCREEN_NAMES, NAMES, CREATED_ATS, FOLLOWER_COUNTS,
-            FRIEND_COUNTS)
+        for user_id, screen_name, name, desc, dt, follower_count, friend_count
+        in zip(USER_IDS, SCREEN_NAMES, NAMES, DESCRIPTIONS, CREATED_ATS,
+               FOLLOWER_COUNTS, FRIEND_COUNTS)
     ]
 
     @classmethod

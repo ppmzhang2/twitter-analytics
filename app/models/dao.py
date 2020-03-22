@@ -66,7 +66,7 @@ class Dao(metaclass=SingletonMeta):
         :param user: a twitter.User instance
         :return: a Tweeter object
         """
-        return Tweeter(user.id, user.screen_name, user.name,
+        return Tweeter(user.id, user.screen_name, user.name, user.description,
                        Dao._parse_date(user.created_at), user.followers_count,
                        user.friends_count)
 
