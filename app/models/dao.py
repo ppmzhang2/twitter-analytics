@@ -12,14 +12,10 @@ from config import Config
 
 __all__ = ['Dao']
 
-# Let's also configure it to echo everything it does to the screen.
-engine = create_engine('sqlite:///{0}'.format(Config.APP_DB), echo=True)
 
-# use session_factory() to get a new Session
-_SessionFactory = sessionmaker(bind=engine)
-
-
-def session_factory():
+def session_factory(echo: bool):
+    engine = create_engine('sqlite:///{0}'.format(Config.APP_DB), echo=echo)
+    _SessionFactory = sessionmaker(bind=engine)
     Base.metadata.create_all(engine)
     return _SessionFactory()
 
@@ -46,8 +42,8 @@ class SingletonMeta(type):
 class Dao(metaclass=SingletonMeta):
     __slots__ = ['session']
 
-    def __init__(self):
-        self.session = session_factory()
+    def __init__(self, echo=False):
+        self.session = session_factory(echo)
 
     @staticmethod
     def _is_new(flag: bool):
@@ -80,6 +76,18 @@ class Dao(metaclass=SingletonMeta):
                 Friendship.follower_id == tweeter_id)).delete()
         self.session.query(Wumao).filter(
             Wumao.tweeter_id == tweeter_id).delete()
+        self.session.query(Track).filter(
+            Track.tweeter_id == tweeter_id).delete()
+
+    def constrain_tweeter_exist(self, tweeter_id: int) -> None:
+        """check provided primary key of table 'tweeter', and raise value error
+        if the PK_ID does NOT exist
+
+        :param tweeter_id:
+        :return:
+        """
+        if self.lookup_tweeter(tweeter_id) is None:
+            raise ValueError('PK ID provided does NOT Exist!')
 
     @_commit
     def reset_db(self) -> None:
@@ -97,12 +105,16 @@ class Dao(metaclass=SingletonMeta):
         """
         self.session.bulk_save_objects(objects)
 
-    def bulk_save_tweeter(self, users: List[twitter.models.User]) -> Set[int]:
+    def bulk_save_tweeter(self,
+                          users: List[twitter.models.User],
+                          return_all: bool = False) -> Set[int]:
         """bulk save on table 'tweeter'
         refer to dao.bulk_save
 
         :param users:
-        :return: sequence of inserted primary keys
+        :param return_all: whether return all primary keys of the input list,
+        or only inserted ones, default False
+        :return: a set of primary keys
         """
         existing_tweeter_ids = self.all_tweeter_id([u.id for u in users])
         if not existing_tweeter_ids:
@@ -115,7 +127,10 @@ class Dao(metaclass=SingletonMeta):
                 if u.id not in existing_tweeter_user_ids)
 
         self.bulk_save(new_tweeters)
-        return self.all_tweeter_id([u.user_id for u in new_tweeters])
+        if return_all:
+            return self.all_tweeter_id([u.id for u in users])
+        else:
+            return self.all_tweeter_id([u.user_id for u in new_tweeters])
 
     def lookup_tweeter(self, tweeter_id: int) -> Optional[Tweeter]:
         """get `Tweeter` instance by primary key
@@ -126,14 +141,19 @@ class Dao(metaclass=SingletonMeta):
         return self.session.query(Tweeter).filter(
             Tweeter.id == tweeter_id).first()
 
-    def all_tweeter_id(self, user_ids: List[int]) -> Set[int]:
-        """get all matched `Tweeter` primary keys by user_id
+    def all_tweeter_id(self, user_ids: Optional[List[int]] = None) -> Set[int]:
+        """get matched `Tweeter` primary keys by user_id list provided, or
+        all PKIDs
 
         :param user_ids: user_id `list`
         :return: set of table 'tweeter' primary keys
         """
-        return set(t[0] for t in self.session.query(Tweeter.id).filter(
-            Tweeter.user_id.in_(user_ids)).all())
+        qry = self.session.query(Tweeter.id)
+        if user_ids is None:
+            return set(t[0] for t in qry.all())
+        else:
+            return set(
+                t[0] for t in qry.filter(Tweeter.user_id.in_(user_ids)).all())
 
     @_commit
     def delete_tweeter(self, tweeter_id: int) -> int:
@@ -197,23 +217,31 @@ class Dao(metaclass=SingletonMeta):
 
     @_commit
     def follow(self, tweeter_id: int, author_id: int) -> None:
+        self.constrain_tweeter_exist(tweeter_id)
+        self.constrain_tweeter_exist(author_id)
         if not self.is_following(tweeter_id, author_id):
             self.session.add(Friendship(author_id, tweeter_id))
 
     @_commit
     def un_follow(self, tweeter_id: int, author_id: int) -> None:
+        self.constrain_tweeter_exist(tweeter_id)
+        self.constrain_tweeter_exist(author_id)
         if self.is_following(tweeter_id, author_id):
             self.session.query(Friendship).filter(
                 Friendship.author_id == author_id,
                 Friendship.follower_id == tweeter_id).delete()
 
     def bulk_follow(self, tweeter_id: int, authors: List[int]) -> None:
+        self.constrain_tweeter_exist(tweeter_id)
+        [self.constrain_tweeter_exist(i) for i in authors]
         new_authors = [
             i for i in authors if i not in self.friends_id(tweeter_id)
         ]
         self.bulk_save((Friendship(i, tweeter_id) for i in new_authors))
 
     def bulk_attract(self, tweeter_id: int, followers: List[int]) -> None:
+        self.constrain_tweeter_exist(tweeter_id)
+        [self.constrain_tweeter_exist(i) for i in followers]
         new_followers = [
             i for i in followers if i not in self.followers_id(tweeter_id)
         ]
@@ -228,14 +256,18 @@ class Dao(metaclass=SingletonMeta):
 
     def bulk_save_wumao(self,
                         tweeter_ids: List[int],
-                        new: bool = False) -> Set[int]:
+                        new: bool = False,
+                        return_all: bool = False) -> Set[int]:
         """bulk save on table 'wumao'
         refer to dao.bulk_save
 
         :param new:
         :param tweeter_ids:
-        :return: set of inserted primary keys
+        :param return_all: whether return all primary keys of the input list,
+        or only inserted ones, default False
+        :return: set of primary keys
         """
+        [self.constrain_tweeter_exist(i) for i in tweeter_ids]
         is_new = self._is_new(new)
         existing_wumao_ids = self.all_wumao_id(tweeter_ids)
         if not existing_wumao_ids:
@@ -247,7 +279,10 @@ class Dao(metaclass=SingletonMeta):
                 Wumao(i, is_new) for i in tweeter_ids
                 if i not in existing_wumao_tweeter_ids)
         self.bulk_save(new_wumaos)
-        return self.all_wumao_id([n.tweeter_id for n in new_wumaos])
+        if return_all:
+            return self.all_wumao_id(tweeter_ids)
+        else:
+            return self.all_wumao_id([n.tweeter_id for n in new_wumaos])
 
     def all_wumao_id(self,
                      tweeter_ids: Optional[List[int]] = None) -> Set[int]:
@@ -264,41 +299,49 @@ class Dao(metaclass=SingletonMeta):
                 t[0]
                 for t in qry.filter(Wumao.tweeter_id.in_(tweeter_ids)).all())
 
-    def update_wumao(self, wumao_id: int, new: bool):
+    def all_wumao_tweeter_id(self) -> Set[int]:
+        return set(t[0] for t in self.session.query(Wumao.tweeter_id).all())
+
+    @_commit
+    def upsert_wumao(self, tweeter_id: int, new: bool):
+        self.constrain_tweeter_exist(tweeter_id)
         is_new = self._is_new(new)
-        qry = self.session.query(Wumao.is_new).filter(Wumao.id == wumao_id)
-        if qry.first() is not None:
+        qry = self.session.query(Wumao).filter(Wumao.tweeter_id == tweeter_id)
+        if qry.first() is None:
+            self.session.add(Wumao(tweeter_id, is_new))
+        else:
             qry.update({Wumao.is_new: is_new})
 
     def any_track(self) -> Track:
         return self.session.query(Track).first()
 
-    def lookup_track(self, user_id: int) -> Track:
+    def lookup_track(self, tweeter_id: int) -> Track:
         return self.session.query(Track).filter(
-            Track.user_id == user_id).first()
+            Track.tweeter_id == tweeter_id).first()
 
     @_commit
-    def delete_track(self, user_id: int) -> int:
-        """delete from 'track' records by providing user_id
+    def delete_track(self, tweeter_id: int) -> int:
+        """delete from 'track' records by providing 'tweeter' ID
         search method
 
-        :param user_id: twitter account ID
+        :param tweeter_id: 'tweeter' primary key
         :return: deleted number of records
         """
         return self.session.query(Track).filter(
-            Track.user_id == user_id).delete()
+            Track.tweeter_id == tweeter_id).delete()
 
     @_commit
-    def upsert_track(self, user_id: int, method: str, cur: int) -> None:
+    def upsert_track(self, tweeter_id: int, method: str, cur: int) -> None:
         """update or insert 'track' with latest cursor
 
-        :param user_id: twitter account ID
+        :param tweeter_id: 'tweeter' primary key
         :param method: search function name
         :param cur: cursor number
         :return:
         """
-        qry = self.session.query(Track).filter(Track.user_id == user_id)
+        self.constrain_tweeter_exist(tweeter_id)
+        qry = self.session.query(Track).filter(Track.tweeter_id == tweeter_id)
         if qry.first() is None:
-            self.session.add(Track(user_id, method, cur))
+            self.session.add(Track(tweeter_id, method, cur))
         else:
-            qry.update({Track.cursor: cur})
+            qry.update({Track.method: method, Track.cursor: cur})

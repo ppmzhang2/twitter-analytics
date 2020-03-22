@@ -5,8 +5,10 @@ from app.saver import Saver
 args = sys.argv[1:]
 
 funcs = {
-    'save': (1, Saver, Saver.init_wumao),
-    'validate': (0, Saver, Saver.validate_wumao)
+    'reset': (0, Saver, Saver.reset),
+    'friendship': (0, Saver, Saver.add_friendship),
+    'enlist': (0, Saver, Saver.enlist_wumao),
+    'fullauto': (0, Saver, Saver.automaton)
 }
 
 

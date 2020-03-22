@@ -76,11 +76,16 @@ class Track(Base):
     __tablename__ = 'track'
 
     id = sa.Column(sa.Integer, primary_key=True)
-    user_id = sa.Column(sa.BigInteger, unique=True, index=True)
+    tweeter_id = sa.Column(sa.Integer,
+                           ForeignKey('tweeter.id',
+                                      onupdate='CASCADE',
+                                      ondelete='CASCADE'),
+                           unique=True,
+                           index=True)
     method = sa.Column(sa.String)
     cursor = sa.Column(sa.BigInteger)
 
-    def __init__(self, user_id: int, method: str, cursor: int):
-        self.user_id = user_id
+    def __init__(self, tweeter_id: int, method: str, cursor: int):
+        self.tweeter_id = tweeter_id
         self.method = method
         self.cursor = cursor

@@ -67,22 +67,26 @@ class TestModel(unittest.TestCase):
         """
         print('setUp started')
 
-        tracks_ = [
-            Track(user_id, method, cursor) for user_id, method, cursor in zip(
-                self.USER_IDS, self.METHODS, self.CURSORS)
-        ]
         self.dao.bulk_save_tweeter(self.USERS)
-        self.dao.bulk_save(tracks_)
         tweeter_ids = self.dao.all_tweeter_id(self.USER_IDS)
+        tracks_ = [
+            Track(tweeter_id, method,
+                  cursor) for tweeter_id, method, cursor in zip(
+                      tweeter_ids, self.METHODS, self.CURSORS)
+        ]
+        self.dao.bulk_save(tracks_)
+
         self.tweeters = [self.dao.lookup_tweeter(i) for i in tweeter_ids]
         self.tracks = [
-            self.dao.lookup_track(track.user_id) for track in tracks_
+            self.dao.lookup_track(track.tweeter_id) for track in tracks_
         ]
+
         self.old_wumao_tweeter_ids = [u.id for u in self.tweeters][:2]
         self.new_wumao_tweeter_ids = [u.id for u in self.tweeters][2:4]
         self.dao.bulk_save_wumao(self.old_wumao_tweeter_ids, new=False)
         self.dao.bulk_save_wumao(self.new_wumao_tweeter_ids, new=True)
         wumaos = [self.dao.lookup_wumao(i) for i in self.dao.all_wumao_id()]
+
         self.old_wumaos = [w for w in wumaos if w.is_new == 0]
         self.new_wumaos = [w for w in wumaos if w.is_new == 1]
         print('setUp ended')
@@ -130,7 +134,7 @@ class TestModel(unittest.TestCase):
           * dao.bulk_attract
           * dao.friend_count
           * dao.follower_count
-          * dao.delete_tweeter_id
+          * dao.delete_tweeter
 
         :return:
         """
@@ -167,9 +171,9 @@ class TestModel(unittest.TestCase):
         """checks DAO methods of table 'wumao' and its 'on-delete' constrain
 
         methods
-          * dao.all_wumao
-          * dao.wumao_tweeter_ids
-          * dao.delete_tweeter_id
+          * dao.all_wumao_id
+          * dao.all_wumao_tweeter_id
+          * dao.delete_tweeter
 
         :return:
         """
@@ -185,10 +189,15 @@ class TestModel(unittest.TestCase):
         self.dao.delete_tweeter(tweeter_id_3)
         self.assertEqual({new_wumao_2.id, old_wumao_1.id, old_wumao_2.id},
                          self.dao.all_wumao_id())
+        self.assertEqual(
+            {
+                new_wumao_2.tweeter_id, old_wumao_1.tweeter_id,
+                old_wumao_2.tweeter_id
+            }, self.dao.all_wumao_tweeter_id())
         # update
-        self.dao.update_wumao(new_wumao_2.id, False)
+        self.dao.upsert_wumao(new_wumao_2.tweeter_id, False)
         self.assertEqual(None, self.dao.any_wumao(True))
-        self.dao.update_wumao(old_wumao_1.id, True)
+        self.dao.upsert_wumao(old_wumao_1.tweeter_id, True)
         self.assertEqual(True, self.dao.lookup_wumao(old_wumao_1.id).is_new)
         self.assertEqual(False, self.dao.lookup_wumao(new_wumao_2.id).is_new)
 
@@ -207,21 +216,28 @@ class TestModel(unittest.TestCase):
         # delete
         self.assertEqual(set(TestModel.CURSORS),
                          {track_1.cursor, track_2.cursor})
-        self.dao.delete_track(track_1.user_id)
-        self.assertEqual(None, self.dao.lookup_track(track_1.user_id))
+        self.dao.delete_track(track_1.tweeter_id)
+        self.assertEqual(None, self.dao.lookup_track(track_1.tweeter_id))
         self.assertEqual(track_2, self.dao.any_track())
-        self.dao.delete_track(track_2.user_id)
-        self.assertEqual(None, self.dao.lookup_track(track_2.user_id))
+        self.dao.delete_track(track_2.tweeter_id)
+        self.assertEqual(None, self.dao.lookup_track(track_2.tweeter_id))
         self.assertEqual(None, self.dao.any_track())
         # multiple tracks update
-        self.dao.upsert_track(track_1.user_id, track_1.method, track_1.cursor)
-        self.dao.upsert_track(track_1.user_id, track_1.method, track_1.cursor)
-        self.dao.upsert_track(track_2.user_id, track_2.method, track_2.cursor)
-        self.dao.upsert_track(track_2.user_id, track_2.method, track_2.cursor)
-        self.assertEqual(track_1.cursor,
-                         self.dao.lookup_track(track_1.user_id).cursor)
+        # overwrite track_1 with track_2's method & cursor
+        self.dao.upsert_track(track_1.tweeter_id, track_1.method,
+                              track_1.cursor)
+        self.dao.upsert_track(track_1.tweeter_id, track_2.method,
+                              track_2.cursor)
+        self.dao.upsert_track(track_2.tweeter_id, track_2.method,
+                              track_2.cursor)
+        self.dao.upsert_track(track_2.tweeter_id, track_2.method,
+                              track_2.cursor)
         self.assertEqual(track_2.cursor,
-                         self.dao.lookup_track(track_2.user_id).cursor)
+                         self.dao.lookup_track(track_1.tweeter_id).cursor)
+        self.assertEqual(track_2.method,
+                         self.dao.lookup_track(track_1.tweeter_id).method)
+        self.assertEqual(track_2.cursor,
+                         self.dao.lookup_track(track_2.tweeter_id).cursor)
 
 
 if __name__ == '__main__':
