@@ -1,8 +1,9 @@
 import unittest
-from datetime import date
+
+from twitter.models import User
 
 from app.models.dao import Dao
-from app.models.tables import Tweeter, Track
+from app.models.tables import Track
 
 
 class TestModel(unittest.TestCase):
@@ -10,8 +11,11 @@ class TestModel(unittest.TestCase):
                 12345678905)
     SCREEN_NAMES = ('user_1', 'user_2', 'user_3', 'user_4', 'user_5')
     NAMES = ('name 1', 'name 2', 'name 3', 'name 4', 'name 5')
-    DATES = (date(2011, 12, 16), date(2020, 2, 29), date(2018, 1, 2),
-             date(2017, 6, 15), date(1991, 6, 25))
+    CREATED_ATS = ('Tue Mar 29 08:11:25 +0000 2011',
+                   'Tue Mar 29 08:11:25 +0000 2020',
+                   'Tue Mar 29 08:11:25 +0000 2020',
+                   'Tue Mar 29 08:11:25 +0000 2011',
+                   'Tue Mar 29 08:11:25 +0000 2011')
     FOLLOWER_COUNTS = (1, 56, 878264, 223, 872)
     FRIEND_COUNTS = (3215, 0, 782, 3295, 3)
     METHODS = ('get_following_paged', 'get_followers_paged')
@@ -31,8 +35,13 @@ class TestModel(unittest.TestCase):
         print('tearDownClass ended')
 
     def setUp(self):
-        """save to DB, get class variables of table instances:
+        """save to DB, get variables of table instances:
         5 tweeters, 2 tracks, 3 wumaos
+        instance variables:
+          * tweeters
+          * tracks
+          * wumao_tweeter_ids
+          * wumaos
 
         methods:
           * dao.bulk_save
@@ -41,19 +50,23 @@ class TestModel(unittest.TestCase):
         :return:
         """
         print('setUp started')
-        tweeters_ = [
-            Tweeter(user_id, screen_name, name, dt, follower_count,
-                    friend_count)
+        users = [
+            User(id=user_id,
+                 screen_name=screen_name,
+                 name=name,
+                 created_at=dt,
+                 followers_count=follower_count,
+                 friends_count=friend_count)
             for user_id, screen_name, name, dt, follower_count, friend_count in
-            zip(self.USER_IDS, self.SCREEN_NAMES, self.NAMES, self.DATES,
+            zip(self.USER_IDS, self.SCREEN_NAMES, self.NAMES, self.CREATED_ATS,
                 self.FOLLOWER_COUNTS, self.FRIEND_COUNTS)
         ]
         tracks_ = [
             Track(user_id, method, cursor) for user_id, method, cursor in zip(
                 self.USER_IDS, self.METHODS, self.CURSORS)
         ]
-        self.dao.bulk_save_tweeter(tweeters_)
-        self.dao.bulk_save_tweeter(tweeters_)
+        self.dao.bulk_save_tweeter(users)
+        self.dao.bulk_save_tweeter(users)
         self.dao.bulk_save(tracks_)
         self.tweeters = self.dao.all_tweeter_user_id(self.USER_IDS)
         self.tracks = [
@@ -61,6 +74,7 @@ class TestModel(unittest.TestCase):
             for track in tracks_
         ]
         self.wumao_tweeter_ids = [u.id for u in self.tweeters][:3]
+        self.dao.bulk_save_wumao(self.wumao_tweeter_ids)
         self.dao.bulk_save_wumao(self.wumao_tweeter_ids)
         self.wumaos = self.dao.all_wumao()
         print('setUp ended')

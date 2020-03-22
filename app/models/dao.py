@@ -1,6 +1,8 @@
+from datetime import datetime
 from functools import wraps
 from typing import List, Optional, Iterable
 
+import twitter
 from sqlalchemy import create_engine, or_, func
 from sqlalchemy.orm import sessionmaker
 
@@ -47,6 +49,27 @@ class Dao(metaclass=SingletonMeta):
     def __init__(self):
         self.session = session_factory()
 
+    @staticmethod
+    def _parse_date(timestamp):
+        """parse tweet "created_at" timestamp string
+
+        :param timestamp: "created_at" format string
+        :return: datetime.date object
+        """
+        ts = datetime.strptime(timestamp, '%a %b %d %H:%M:%S +0000 %Y')
+        return ts.date()
+
+    @staticmethod
+    def _twitter_user_mapper(user: twitter.models.User):
+        """convert a twitter.User instance to a Tweeter ORM object
+
+        :param user: a twitter.User instance
+        :return: a Tweeter object
+        """
+        return Tweeter(user.id, user.screen_name, user.name,
+                       Dao._parse_date(user.created_at), user.followers_count,
+                       user.friends_count)
+
     def _delete_tweeter_cascade(self, tweeter_id: int) -> int:
         self.session.query(Friendship).filter(
             or_(Friendship.author_id == tweeter_id,
@@ -70,12 +93,13 @@ class Dao(metaclass=SingletonMeta):
         """
         self.session.bulk_save_objects(objects)
 
-    def bulk_save_tweeter(self, tweeters: List[Tweeter]) -> None:
-        user_ids = [u.user_id for u in tweeters]
-        existing_user_ids = set(u.user_id
-                                for u in self.all_tweeter_user_id(user_ids))
-        new_tweeters = (u for u in tweeters
-                        if u.user_id not in existing_user_ids)
+    def bulk_save_tweeter(self, users: List[twitter.models.User]) -> None:
+        tweeters = [self._twitter_user_mapper(u) for u in users]
+        existing_user_ids = set(
+            u.user_id
+            for u in self.all_tweeter_user_id([r.user_id for r in tweeters]))
+        new_tweeters = set(u for u in tweeters
+                           if u.user_id not in existing_user_ids)
         return self.bulk_save(new_tweeters)
 
     def lookup_tweeter_id(self, pk_id: int) -> Optional[Tweeter]:
@@ -191,8 +215,8 @@ class Dao(metaclass=SingletonMeta):
     def bulk_save_wumao(self, tweeter_ids: List[int]) -> None:
         existing_tweeter_ids = set(u.tweeter_id
                                    for u in self.all_wumao(tweeter_ids))
-        new_wumaos = (Wumao(i) for i in tweeter_ids
-                      if i not in existing_tweeter_ids)
+        new_wumaos = set(
+            Wumao(i) for i in tweeter_ids if i not in existing_tweeter_ids)
         return self.bulk_save(new_wumaos)
 
     def all_wumao(self,
