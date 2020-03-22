@@ -53,7 +53,7 @@ class Saver(metaclass=SingletonMeta):
     __slots__ = ['dao', 'tweet']
 
     def __init__(self):
-        self.dao = Dao(new=False)
+        self.dao = Dao()
         self.tweet = Tweet()
 
     @staticmethod
