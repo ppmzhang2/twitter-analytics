@@ -80,6 +80,8 @@ class Dao(metaclass=SingletonMeta):
                 Friendship.follower_id == tweeter_id)).delete()
         self.session.query(Wumao).filter(
             Wumao.tweeter_id == tweeter_id).delete()
+        self.session.query(Track).filter(
+            Track.tweeter_id == tweeter_id).delete()
 
     @_commit
     def reset_db(self) -> None:
@@ -273,32 +275,32 @@ class Dao(metaclass=SingletonMeta):
     def any_track(self) -> Track:
         return self.session.query(Track).first()
 
-    def lookup_track(self, user_id: int) -> Track:
+    def lookup_track(self, tweeter_id: int) -> Track:
         return self.session.query(Track).filter(
-            Track.user_id == user_id).first()
+            Track.tweeter_id == tweeter_id).first()
 
     @_commit
-    def delete_track(self, user_id: int) -> int:
-        """delete from 'track' records by providing user_id
+    def delete_track(self, tweeter_id: int) -> int:
+        """delete from 'track' records by providing 'tweeter' ID
         search method
 
-        :param user_id: twitter account ID
+        :param tweeter_id: 'tweeter' primary key
         :return: deleted number of records
         """
         return self.session.query(Track).filter(
-            Track.user_id == user_id).delete()
+            Track.tweeter_id == tweeter_id).delete()
 
     @_commit
-    def upsert_track(self, user_id: int, method: str, cur: int) -> None:
+    def upsert_track(self, tweeter_id: int, method: str, cur: int) -> None:
         """update or insert 'track' with latest cursor
 
-        :param user_id: twitter account ID
+        :param tweeter_id: 'tweeter' primary key
         :param method: search function name
         :param cur: cursor number
         :return:
         """
-        qry = self.session.query(Track).filter(Track.user_id == user_id)
+        qry = self.session.query(Track).filter(Track.tweeter_id == tweeter_id)
         if qry.first() is None:
-            self.session.add(Track(user_id, method, cur))
+            self.session.add(Track(tweeter_id, method, cur))
         else:
             qry.update({Track.cursor: cur})
