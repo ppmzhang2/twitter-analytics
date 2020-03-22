@@ -1,3 +1,4 @@
+import shutil
 from datetime import date, datetime
 from functools import wraps
 from time import sleep
@@ -9,6 +10,7 @@ from twitter.models import User
 
 from app.models.dao import Dao
 from app.tweet import Tweet
+from config import Config
 
 __all__ = ['Saver']
 
@@ -31,6 +33,8 @@ def _sleep(fn):
                         'code': 88
                 }]:
                     # sleep 6 min if exceeds limit
+                    print('backup DB when exceeds limit')
+                    shutil.copyfile(Config.APP_DB, Config.BAK_DB)
                     print("exceeds rate limit, sleep...")
                     sleep(360)
                 else:
