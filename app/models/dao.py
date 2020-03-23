@@ -4,7 +4,7 @@ from typing import List, Optional, Iterable, Set
 
 import twitter
 from sqlalchemy import create_engine, or_, func
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, aliased
 
 from app.models.base import Base
 from app.models.tables import Tweeter, Friendship, Track, Wumao
@@ -214,6 +214,32 @@ class Dao(metaclass=SingletonMeta):
             return 0
         else:
             return res[0]
+
+    def score(self):
+        """scoring a twitter account by measuring its wumao friends & followers
+        count
+
+        :return: list of 1. tweeter_id; 2. score
+        """
+        tweeter_ids = self.all_wumao_tweeter_id()
+        a1 = aliased(Friendship)
+        a2 = aliased(Friendship)
+        q1 = self.session.query(
+            a1.follower_id,
+            func.count(a1.author_id).label('friend_count')).filter(
+                a1.author_id.in_(tweeter_ids),
+                a1.follower_id.notin_(tweeter_ids)).group_by(a1.follower_id)
+        q2 = self.session.query(
+            a2.author_id,
+            func.count(a2.follower_id).label('follower_count')).filter(
+                a2.follower_id.in_(tweeter_ids),
+                a2.author_id.notin_(tweeter_ids)).group_by(a2.author_id)
+        s1 = q1.subquery()
+        s2 = q2.subquery()
+        return self.session.query(
+            s1.c.follower_id.label('tweeter_id'),
+            (s1.c.friend_count + s2.c.follower_count).label('score')).join(
+                s2, s1.c.follower_id == s2.c.author_id).all()
 
     @_commit
     def follow(self, tweeter_id: int, author_id: int) -> None:
