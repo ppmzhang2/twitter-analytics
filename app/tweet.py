@@ -1,12 +1,38 @@
 import datetime
 import time
-from typing import Tuple
+from functools import wraps
+from typing import Tuple, Any
 
 import twitter
 
 from config import Config
 
 __all__ = ['Tweet']
+
+
+def _catcher(default: Any):
+    """decorator to catch TwitterError (e.g. unauthorized due to account
+    suspension)
+
+    :param default: default value to return when error is caught
+    :return:
+    """
+    def dec(fn):
+        @wraps(fn)
+        def helper(*args, **kwargs):
+            try:
+                res = fn(*args, **kwargs)
+            except twitter.error.TwitterError as e:
+                if e.message == 'Not authorized.':
+                    return default
+                else:
+                    raise e
+
+            return res
+
+        return helper
+
+    return dec
 
 
 class SingletonMeta(type):
@@ -37,6 +63,7 @@ class Tweet(metaclass=SingletonMeta):
         ts = time.strptime(timestamp, '%a %b %d %H:%M:%S +0000 %Y')
         return datetime.date(ts.tm_year, ts.tm_mon, ts.tm_mday)
 
+    @_catcher((0, -1, []))
     def get_followers_paged(
             self,
             user_id,
@@ -51,6 +78,7 @@ class Tweet(metaclass=SingletonMeta):
             skip_status=skip_status,
             include_user_entities=include_user_entities)
 
+    @_catcher((0, -1, []))
     def get_following_paged(
             self,
             user_id,
@@ -65,6 +93,7 @@ class Tweet(metaclass=SingletonMeta):
             skip_status=skip_status,
             include_user_entities=include_user_entities)
 
+    @_catcher([])
     def get_followers(self,
                       user_id,
                       skip_status=True,
@@ -79,6 +108,7 @@ class Tweet(metaclass=SingletonMeta):
         return self.get_followers_paged(user_id, -1, 200, skip_status,
                                         include_user_entities)[2]
 
+    @_catcher([])
     def get_following(self,
                       user_id,
                       skip_status=True,
