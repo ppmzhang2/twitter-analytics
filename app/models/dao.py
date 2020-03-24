@@ -1,3 +1,5 @@
+import csv
+import shutil
 from datetime import datetime
 from functools import wraps
 from typing import List, Optional, Iterable, Set
@@ -411,3 +413,27 @@ class Dao(metaclass=SingletonMeta):
             self.session.add(Track(tweeter_id, method, cur))
         else:
             qry.update({Track.method: method, Track.cursor: cur})
+
+    def wumao_to_csv(self, weight: float = 1.0) -> None:
+        """export wumao account data to csv
+
+        :param weight: filter, lower bound of `Wumao`.weight, default 1.0
+        :return:
+        """
+        shutil.rmtree(Config.WUMAO_CSV, ignore_errors=True)
+        records = self.session.query(
+            Tweeter.user_id.label('ID'),
+            Tweeter.screen_name.label('Screen Name'),
+            Tweeter.name.label('Nick Name'),
+            Tweeter.description.label('Description'),
+            Tweeter.created_at.label('Creation Date'),
+            Tweeter.follower_count.label('#Follower'),
+            Tweeter.friend_count.label('#Following'),
+            Wumao.weight.label('Wumao Score')).join(
+                Wumao, Tweeter.id == Wumao.tweeter_id).filter(
+                    Wumao.weight >= weight).order_by(
+                        Wumao.weight.desc()).all()
+        with open(Config.WUMAO_CSV, 'w') as outfile:
+            csv_writer = csv.writer(outfile)
+            csv_writer.writerow(records[0].keys())
+            csv_writer.writerows(records)

@@ -6,9 +6,8 @@ args = sys.argv[1:]
 
 funcs = {
     'reset': (0, Saver, Saver.reset),
-    'friendship': (0, Saver, Saver.add_friendship),
-    'enlist': (0, Saver, Saver.enlist_wumao),
-    'fullauto': (0, Saver, Saver.automaton)
+    'fullauto': (0, Saver, Saver.automaton),
+    'export': (0, Saver, Saver.export)
 }
 
 

@@ -136,6 +136,9 @@ class Saver(metaclass=SingletonMeta):
         tweeter_ids = self.dao.bulk_save_tweeter(self.SEED_USERS)
         self.dao.bulk_save_wumao(list(tweeter_ids), new=True)
 
+    def export(self):
+        self.dao.wumao_to_csv()
+
     @staticmethod
     def _is_potential_wumao(user: User) -> bool:
         """check if it is a newly registered wumao twitter account
