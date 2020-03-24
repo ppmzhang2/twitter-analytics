@@ -1,3 +1,4 @@
+import math
 import shutil
 from datetime import date, datetime
 from functools import wraps
@@ -273,7 +274,8 @@ class Saver(metaclass=SingletonMeta):
 
     def enlist_wumao(self, lower_bound: float = 0) -> int:
         """save to wumao list tweeters with the highest wumao score, if the
-        score is higher than or equal to the provided lower bound
+        score is higher than or equal to the provided lower bound, and refresh
+        wumao weight using their internal connection score
 
         :param lower_bound: lower bound of the highest score, default 0
         :return: current highest wumao score, -1 if no candidate selected
@@ -283,14 +285,17 @@ class Saver(metaclass=SingletonMeta):
         if not score_card:
             return -1
 
-        max_score = max(score_card, key=lambda x: x.score).score
+        # relax a bit criteria by using floor
+        max_score = math.floor(max(score_card, key=lambda x: x.score).score)
 
         if max_score >= lower_bound:
             new_wumao_tweeter_ids = [
-                r.tweeter_id for r in score_card if r.score == max_score
+                r.tweeter_id for r in score_card if r.score >= max_score
             ]
             print('tweeter IDs to save: {}'.format(new_wumao_tweeter_ids))
             self.dao.bulk_save_wumao(new_wumao_tweeter_ids, new=True)
+            # refresh weight after adding new wumaos
+            self.dao.refresh_wumao_score()
         return max_score
 
     def automaton(self):
