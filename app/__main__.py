@@ -5,8 +5,10 @@ from app.saver import Saver
 args = sys.argv[1:]
 
 funcs = {
-    'save': (1, Saver, Saver.init_wumao),
-    'validate': (0, Saver, Saver.validate_wumao)
+    'reset': (0, Saver, Saver.reset),
+    'seeds': (-1, Saver, Saver.seeds),
+    'fullauto': (0, Saver, Saver.automaton),
+    'export': (0, Saver, Saver.export)
 }
 
 
@@ -28,6 +30,17 @@ def arg1():
         return None
 
 
+def args_int() -> list:
+    """get all arguments as seed user IDs
+
+    :return:
+    """
+    try:
+        return [int(i) for i in args[1:]]
+    except (IndexError, ValueError):
+        return None
+
+
 def main():
     if request() is None:
         raise TypeError('expect at least one input')
@@ -41,6 +54,11 @@ def main():
     if n_args == 0:
         instance = cls()
         func(instance)
+    elif n_args == -1 and args_int() is None:
+        raise ValueError('User IDs must be integers')
+    elif n_args == -1:
+        instance = cls()
+        func(instance, *args_int())
     elif n_args == 1 and arg1() is None:
         raise TypeError('user ID not provided')
     elif n_args == 1:

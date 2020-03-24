@@ -12,3 +12,5 @@ class Config(object):
     # path
     DB_DIR = ''.join([basedir, '/db'])
     APP_DB = ''.join([DB_DIR, '/app.db'])
+    BAK_DB = ''.join([DB_DIR, '/app.db.bak'])
+    WUMAO_CSV = ''.join([basedir, '/wumao.csv'])
