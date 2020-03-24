@@ -3,7 +3,7 @@ from functools import wraps
 from typing import List, Optional, Iterable, Set
 
 import twitter
-from sqlalchemy import create_engine, or_, func
+from sqlalchemy import create_engine, or_, func, literal
 from sqlalchemy.orm import sessionmaker, aliased
 
 from app.models.base import Base
@@ -240,6 +240,31 @@ class Dao(metaclass=SingletonMeta):
             s1.c.follower_id.label('tweeter_id'),
             (s1.c.friend_count + s2.c.follower_count).label('score')).join(
                 s2, s1.c.follower_id == s2.c.author_id).all()
+
+    def center_score(self):
+        tweeter_ids = self.all_wumao_tweeter_id()
+        a1 = aliased(Friendship)
+        a2 = aliased(Friendship)
+        query_friend = self.session.query(
+            a1.follower_id.label('tweeter_id'),
+            func.count(a1.author_id).label('friend_count'),
+            literal(0).label('follower_count')).filter(
+                a1.author_id.in_(tweeter_ids),
+                a1.follower_id.in_(tweeter_ids)).group_by(a1.follower_id)
+        query_follower = self.session.query(
+            a2.author_id.label('tweeter_id'),
+            literal(0).label('friend_count'),
+            func.count(a2.follower_id).label('follower_count')).filter(
+                a2.author_id.in_(tweeter_ids),
+                a2.follower_id.in_(tweeter_ids)).group_by(a2.author_id)
+        s = query_friend.union_all(query_follower).subquery()
+        return self.session.query(
+            s.c.tweeter_id,
+            func.sum(s.c.friend_count).label('friend_count'),
+            func.sum(s.c.follower_count).label('follower_count'),
+            func.sum(s.c.friend_count +
+                     s.c.follower_count).label('score')).group_by(
+                         s.c.tweeter_id).all()
 
     @_commit
     def follow(self, tweeter_id: int, author_id: int) -> None:
