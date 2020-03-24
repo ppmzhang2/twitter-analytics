@@ -271,38 +271,27 @@ class Saver(metaclass=SingletonMeta):
         print('all friendship of new wumaos has been added')
         return
 
-    def enlist_wumao(self) -> int:
-        """recursively save qualified tweeters into table 'wumao'
+    def enlist_wumao(self, lower_bound: float = 0) -> int:
+        """save to wumao list tweeters with the highest wumao score, if the
+        score is higher than or equal to the provided lower bound
 
-        :return: loop count
+        :param lower_bound: lower bound of the highest score, default 0
+        :return: current highest wumao score, -1 if no candidate selected
         """
-        def test(tweeter_id: int, d: Dao):
-            """check whether or not a tweeter is wumao
+        score_card = self.dao.score()
 
-            :param tweeter_id:
-            :param d: instance of Dao
-            :return:
-            """
-            score = 1.5 * d.follower_count(tweeter_id, d.all_wumao_tweeter_id(
-            )) + 1.0 * d.friend_count(tweeter_id, d.all_wumao_tweeter_id())
-            if score >= 4:
-                return True
-            else:
-                return False
+        if not score_card:
+            return -1
 
-        n = 0
-        while True:
-            candidate_tweeter_ids = self.dao.all_tweeter_id(
-            ) - self.dao.all_wumao_tweeter_id()
+        max_score = max(score_card, key=lambda x: x.score).score
+
+        if max_score >= lower_bound:
             new_wumao_tweeter_ids = [
-                i for i in candidate_tweeter_ids if test(i, self.dao)
+                r.tweeter_id for r in score_card if r.score == max_score
             ]
-            if not new_wumao_tweeter_ids:
-                break
-            else:
-                self.dao.bulk_save_wumao(new_wumao_tweeter_ids, new=False)
-            n += 1
-        return n
+            print('tweeter IDs to save: {}'.format(new_wumao_tweeter_ids))
+            self.dao.bulk_save_wumao(new_wumao_tweeter_ids, new=True)
+        return max_score
 
     def automaton(self):
         """full-auto wumao searching
