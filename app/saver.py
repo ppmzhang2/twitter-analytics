@@ -63,77 +63,14 @@ class Saver(metaclass=SingletonMeta):
         self.tweet = Tweet()
 
     PAGE_COUNT = 200
-    SEED_USERS = [
-        User(id=977458805658173440,
-             screen_name='Silme29051012',
-             name='Silme',
-             description='',
-             created_at='Sat Mar 24 08:15:14 +0000 2018',
-             followers_count=3296,
-             friends_count=11),
-        User(id=390178855,
-             screen_name='chinarealvoice',
-             name='中国之音\U0001f1e8\U0001f1f3中国自己的声音\U0001f1e8\U0001f1f3',
-             description=
-             'spread positive energy, let the world understand China! '
-             '\n再艰难，爱不会离开！此刻我们都是武汉人！'
-             '\n万众一心，众志成城，就没有中国人民跨不过去的坎！'
-             '\n武汉加油！中国\U0001f1e8\U0001f1f3加油！',
-             created_at='Thu Oct 13 15:50:04 +0000 2011',
-             followers_count=7407,
-             friends_count=475),
-        User(id=972969342437507072,
-             screen_name='wb4966',
-             name='北京摄影老顽童\U0001f1e8\U0001f1f3',
-             description='两制可以谈，一国是关键！'
-             '中华人民共和国的领土上决不能容纳一个汉奸！我挺近平！',
-             created_at='Sun Mar 11 22:55:42 +0000 2018',
-             followers_count=3839,
-             friends_count=106),
-        User(id=1154405239052627968,
-             screen_name='zifeiyu_1003_2',
-             name='子非鱼_II世',
-             description='“子非鱼，焉知鱼之乐?” …“子非我，安知我不知鱼之乐?” '
-             '…… 尔曹身与名俱灭，不废江河万古流！反贼 公知滚远点！',
-             created_at='Thu Jul 25 14:57:11 +0000 2019',
-             followers_count=2053,
-             friends_count=395),
-        User(id=577007325,
-             screen_name='iutiku',
-             name='徐嘉苧',
-             description='生如夏花，逝若流沙。人身一苦器，生死两刹那！',
-             created_at='Fri May 11 07:18:27 +0000 2012',
-             followers_count=9710,
-             friends_count=177),
-        User(id=1174230449348055040,
-             screen_name='Boyanxiejun',
-             name='五毛外宣部副部长\U0001f1e8\U0001f1f3',
-             description='敲响世界法西斯的丧钟，'
-             '让挑事好战的人都变盒子，'
-             '收集友军尸体，'
-             '欢迎各位把尸体发给我，',
-             created_at='Wed Sep 18 07:55:44 +0000 2019',
-             followers_count=2503,
-             friends_count=2391),
-        User(id=2924811511,
-             screen_name='XijinLi',
-             name='XIJIN LI',
-             description='看见。思考。记录。',
-             created_at='Tue Dec 09 23:33:33 +0000 2014',
-             followers_count=7930,
-             friends_count=2446),
-        User(id=1153839774567825410,
-             screen_name='Bridge__z',
-             name='橋',
-             description='予人玫瑰 手有餘香',
-             created_at='Wed Jul 24 01:30:14 +0000 2019',
-             followers_count=3315,
-             friends_count=132)
-    ]
 
     def reset(self):
+        shutil.rmtree(Config.APP_DB, ignore_errors=True)
         self.dao.reset_db()
-        tweeter_ids = self.dao.bulk_save_tweeter(self.SEED_USERS)
+
+    def seeds(self, *args: int):
+        seed_users = [self.tweet.get_user(i) for i in args]
+        tweeter_ids = self.dao.bulk_save_tweeter(seed_users)
         self.dao.bulk_save_wumao(list(tweeter_ids), new=True)
 
     def export(self):

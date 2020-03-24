@@ -122,3 +122,7 @@ class Tweet(metaclass=SingletonMeta):
         """
         return self.get_following_paged(user_id, -1, 200, skip_status,
                                         include_user_entities)[2]
+
+    @_catcher(None)
+    def get_user(self, user_id: int):
+        return self.api.GetUser(user_id=user_id)
