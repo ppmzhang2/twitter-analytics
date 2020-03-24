@@ -217,29 +217,31 @@ class Dao(metaclass=SingletonMeta):
 
     def score(self):
         """scoring a twitter account by measuring its wumao friends & followers
-        count
+        WEIGHTED count, refer to `Dao.refresh_wumao_score`
 
         :return: list of 1. tweeter_id; 2. score
         """
         tweeter_ids = self.all_wumao_tweeter_id()
-        a1 = aliased(Friendship)
-        a2 = aliased(Friendship)
-        q1 = self.session.query(
-            a1.follower_id,
-            func.count(a1.author_id).label('friend_count')).filter(
-                a1.author_id.in_(tweeter_ids),
-                a1.follower_id.notin_(tweeter_ids)).group_by(a1.follower_id)
-        q2 = self.session.query(
-            a2.author_id,
-            func.count(a2.follower_id).label('follower_count')).filter(
-                a2.follower_id.in_(tweeter_ids),
-                a2.author_id.notin_(tweeter_ids)).group_by(a2.author_id)
-        s1 = q1.subquery()
-        s2 = q2.subquery()
+        sub_friend = self.session.query(
+            Friendship.follower_id,
+            func.sum(Wumao.weight).label('friend_score')).join(
+                Wumao, Friendship.author_id == Wumao.tweeter_id).filter(
+                    Friendship.author_id.in_(tweeter_ids),
+                    Friendship.follower_id.notin_(tweeter_ids)).group_by(
+                        Friendship.follower_id).subquery()
+        sub_follower = self.session.query(
+            Friendship.author_id,
+            func.sum(Wumao.weight).label('follower_score')).join(
+                Wumao, Friendship.follower_id == Wumao.tweeter_id).filter(
+                    Friendship.follower_id.in_(tweeter_ids),
+                    Friendship.author_id.notin_(tweeter_ids)).group_by(
+                        Friendship.author_id).subquery()
         return self.session.query(
-            s1.c.follower_id.label('tweeter_id'),
-            (s1.c.friend_count + s2.c.follower_count).label('score')).join(
-                s2, s1.c.follower_id == s2.c.author_id).all()
+            sub_friend.c.follower_id.label('tweeter_id'),
+            (sub_friend.c.friend_score +
+             sub_follower.c.follower_score).label('score')).join(
+                 sub_follower,
+                 sub_friend.c.follower_id == sub_follower.c.author_id).all()
 
     def center_score(self):
         tweeter_ids = self.all_wumao_tweeter_id()
