@@ -242,12 +242,19 @@ class Saver(metaclass=SingletonMeta):
         """full-auto wumao searching
         finish if no wumao is enlisted after an adding friendship process
 
+        :local threshold:
+        the threshold is assumed to always increase as new wuamos are
+        continuously added; assigned to half of total #wumao
+
         :return:
         """
         while True:
+            threshold = len(self.dao.all_wumao_tweeter_id()) / 2
             self.add_friendship()
-            n = self.enlist_wumao()
-            if n == 0:
+            new_max_score = self.enlist_wumao(threshold)
+            print('current maximum score: {}'.format(threshold))
+            if new_max_score < threshold:
                 break
-        print('job done')
+        print('all wumaos are found, job done! last max score: {}'.format(
+            threshold))
         return
