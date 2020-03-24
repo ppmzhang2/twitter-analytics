@@ -42,7 +42,7 @@ To make it simple and intuitive to operate without having to crawling huge amoun
 
 ## Examples
 
-It is not difficult to find some well-known wumaos by exploring banned list, and my initial [finding](./example.csv) is added as an example.
+It is not difficult to find some well-known wumaos. After exploring several banned list I added some seed and started the program for a while, and my initial [finding](./example.csv) is added as an example.
 
 ## Wumao Behavior Analysis
 

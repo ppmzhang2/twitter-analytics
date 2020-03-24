@@ -2,20 +2,20 @@ import csv
 import shutil
 from datetime import datetime
 from functools import wraps
-from typing import List, Optional, Iterable, Set
+from typing import Iterable, List, Optional, Set
 
 import twitter
-from sqlalchemy import create_engine, or_, func, literal
-from sqlalchemy.orm import sessionmaker, aliased
+from sqlalchemy import create_engine, func, literal, or_
+from sqlalchemy.orm import Session, aliased, sessionmaker
 
 from app.models.base import Base
-from app.models.tables import Tweeter, Friendship, Track, Wumao
+from app.models.tables import Friendship, Track, Tweeter, Wumao
 from config import Config
 
 __all__ = ['Dao']
 
 
-def session_factory(echo: bool):
+def session_factory(echo: bool) -> Session:
     engine = create_engine('sqlite:///{0}'.format(Config.APP_DB), echo=echo)
     _SessionFactory = sessionmaker(bind=engine)
     Base.metadata.create_all(engine)
@@ -45,7 +45,7 @@ class Dao(metaclass=SingletonMeta):
     __slots__ = ['session']
 
     def __init__(self, echo=False):
-        self.session = session_factory(echo)
+        self.session: Session = session_factory(echo)
 
     @staticmethod
     def _is_new(flag: bool):
@@ -223,21 +223,22 @@ class Dao(metaclass=SingletonMeta):
 
         :return: list of 1. tweeter_id; 2. score
         """
-        tweeter_ids = self.all_wumao_tweeter_id()
+        a1 = aliased(Wumao)
+        a2 = aliased(Wumao)
         sub_friend = self.session.query(
             Friendship.follower_id,
-            func.sum(Wumao.weight).label('friend_score')).join(
-                Wumao, Friendship.author_id == Wumao.tweeter_id).filter(
-                    Friendship.author_id.in_(tweeter_ids),
-                    Friendship.follower_id.notin_(tweeter_ids)).group_by(
-                        Friendship.follower_id).subquery()
+            func.sum(a1.weight).label('friend_score')).join(
+                a1, Friendship.author_id == a1.tweeter_id).outerjoin(
+                    a2, Friendship.follower_id == a2.tweeter_id).filter(
+                        a2.tweeter_id.is_(None)).group_by(
+                            Friendship.follower_id).subquery()
         sub_follower = self.session.query(
             Friendship.author_id,
-            func.sum(Wumao.weight).label('follower_score')).join(
-                Wumao, Friendship.follower_id == Wumao.tweeter_id).filter(
-                    Friendship.follower_id.in_(tweeter_ids),
-                    Friendship.author_id.notin_(tweeter_ids)).group_by(
-                        Friendship.author_id).subquery()
+            func.sum(a1.weight).label('follower_score')).join(
+                a1, Friendship.follower_id == a1.tweeter_id).outerjoin(
+                    a2, Friendship.author_id == a2.tweeter_id).filter(
+                        a2.tweeter_id.is_(None)).group_by(
+                            Friendship.author_id).subquery()
         return self.session.query(
             sub_friend.c.follower_id.label('tweeter_id'),
             (sub_friend.c.friend_score +
@@ -246,21 +247,22 @@ class Dao(metaclass=SingletonMeta):
                  sub_friend.c.follower_id == sub_follower.c.author_id).all()
 
     def center_score(self):
-        tweeter_ids = self.all_wumao_tweeter_id()
-        a1 = aliased(Friendship)
-        a2 = aliased(Friendship)
+        a1 = aliased(Wumao)
+        a2 = aliased(Wumao)
         query_friend = self.session.query(
-            a1.follower_id.label('tweeter_id'),
-            func.count(a1.author_id).label('friend_count'),
-            literal(0).label('follower_count')).filter(
-                a1.author_id.in_(tweeter_ids),
-                a1.follower_id.in_(tweeter_ids)).group_by(a1.follower_id)
+            Friendship.follower_id.label('tweeter_id'),
+            func.count(Friendship.author_id).label('friend_count'),
+            literal(0).label('follower_count')).join(
+                a1, Friendship.author_id == a1.tweeter_id).join(
+                    a2, Friendship.follower_id == a2.tweeter_id).group_by(
+                        Friendship.follower_id)
         query_follower = self.session.query(
-            a2.author_id.label('tweeter_id'),
+            Friendship.author_id.label('tweeter_id'),
             literal(0).label('friend_count'),
-            func.count(a2.follower_id).label('follower_count')).filter(
-                a2.author_id.in_(tweeter_ids),
-                a2.follower_id.in_(tweeter_ids)).group_by(a2.author_id)
+            func.count(Friendship.follower_id).label('follower_count')).join(
+                a1, Friendship.author_id == a1.tweeter_id).join(
+                    a2, Friendship.follower_id == a2.tweeter_id).group_by(
+                        Friendship.author_id)
         sub_union = query_friend.union_all(query_follower).subquery()
         sub_score = self.session.query(
             sub_union.c.tweeter_id,
@@ -291,7 +293,8 @@ class Dao(metaclass=SingletonMeta):
 
     def bulk_follow(self, tweeter_id: int, authors: List[int]) -> None:
         self.constrain_tweeter_exist(tweeter_id)
-        [self.constrain_tweeter_exist(i) for i in authors]
+        for author in authors:
+            self.constrain_tweeter_exist(author)
         new_authors = [
             i for i in authors if i not in self.friends_id(tweeter_id)
         ]
@@ -299,7 +302,8 @@ class Dao(metaclass=SingletonMeta):
 
     def bulk_attract(self, tweeter_id: int, followers: List[int]) -> None:
         self.constrain_tweeter_exist(tweeter_id)
-        [self.constrain_tweeter_exist(i) for i in followers]
+        for follower in followers:
+            self.constrain_tweeter_exist(follower)
         new_followers = [
             i for i in followers if i not in self.followers_id(tweeter_id)
         ]
@@ -325,7 +329,8 @@ class Dao(metaclass=SingletonMeta):
         or only inserted ones, default False
         :return: set of primary keys
         """
-        [self.constrain_tweeter_exist(i) for i in tweeter_ids]
+        for tid in tweeter_ids:
+            self.constrain_tweeter_exist(tid)
         is_new = self._is_new(new)
         existing_wumao_ids = self.all_wumao_id(tweeter_ids)
         if not existing_wumao_ids:
