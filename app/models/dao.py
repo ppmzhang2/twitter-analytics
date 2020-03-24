@@ -257,14 +257,17 @@ class Dao(metaclass=SingletonMeta):
             func.count(a2.follower_id).label('follower_count')).filter(
                 a2.author_id.in_(tweeter_ids),
                 a2.follower_id.in_(tweeter_ids)).group_by(a2.author_id)
-        s = query_friend.union_all(query_follower).subquery()
+        sub_union = query_friend.union_all(query_follower).subquery()
+        sub_score = self.session.query(
+            sub_union.c.tweeter_id,
+            func.sum(sub_union.c.friend_count).label('friend_count'),
+            func.sum(sub_union.c.follower_count).label('follower_count'),
+            func.sum(sub_union.c.friend_count +
+                     sub_union.c.follower_count).label('score')).group_by(
+                         sub_union.c.tweeter_id).subquery()
         return self.session.query(
-            s.c.tweeter_id,
-            func.sum(s.c.friend_count).label('friend_count'),
-            func.sum(s.c.follower_count).label('follower_count'),
-            func.sum(s.c.friend_count +
-                     s.c.follower_count).label('score')).group_by(
-                         s.c.tweeter_id).all()
+            Wumao.id, Wumao.tweeter_id, sub_score.c.score).join(
+                sub_score, Wumao.tweeter_id == sub_score.c.tweeter_id).all()
 
     @_commit
     def follow(self, tweeter_id: int, author_id: int) -> None:
@@ -362,6 +365,16 @@ class Dao(metaclass=SingletonMeta):
             self.session.add(Wumao(tweeter_id, is_new))
         else:
             qry.update({Wumao.is_new: is_new})
+
+    @_commit
+    def refresh_wumao_score(self):
+        scores = self.center_score()
+        avg = sum(t.score for t in scores) / len(scores)
+        mappings = ({
+            'id': t.id,
+            'weight': round(t.score / avg, 2),
+        } for t in scores)
+        return self.session.bulk_update_mappings(Wumao, mappings)
 
     def any_track(self) -> Track:
         return self.session.query(Track).first()
