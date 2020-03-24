@@ -1,10 +1,12 @@
+import csv
+import shutil
 from datetime import datetime
 from functools import wraps
 from typing import List, Optional, Iterable, Set
 
 import twitter
-from sqlalchemy import create_engine, or_, func
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, or_, func, literal
+from sqlalchemy.orm import sessionmaker, aliased
 
 from app.models.base import Base
 from app.models.tables import Tweeter, Friendship, Track, Wumao
@@ -215,6 +217,62 @@ class Dao(metaclass=SingletonMeta):
         else:
             return res[0]
 
+    def score(self):
+        """scoring a twitter account by measuring its wumao friends & followers
+        WEIGHTED count, refer to `Dao.refresh_wumao_score`
+
+        :return: list of 1. tweeter_id; 2. score
+        """
+        tweeter_ids = self.all_wumao_tweeter_id()
+        sub_friend = self.session.query(
+            Friendship.follower_id,
+            func.sum(Wumao.weight).label('friend_score')).join(
+                Wumao, Friendship.author_id == Wumao.tweeter_id).filter(
+                    Friendship.author_id.in_(tweeter_ids),
+                    Friendship.follower_id.notin_(tweeter_ids)).group_by(
+                        Friendship.follower_id).subquery()
+        sub_follower = self.session.query(
+            Friendship.author_id,
+            func.sum(Wumao.weight).label('follower_score')).join(
+                Wumao, Friendship.follower_id == Wumao.tweeter_id).filter(
+                    Friendship.follower_id.in_(tweeter_ids),
+                    Friendship.author_id.notin_(tweeter_ids)).group_by(
+                        Friendship.author_id).subquery()
+        return self.session.query(
+            sub_friend.c.follower_id.label('tweeter_id'),
+            (sub_friend.c.friend_score +
+             sub_follower.c.follower_score).label('score')).join(
+                 sub_follower,
+                 sub_friend.c.follower_id == sub_follower.c.author_id).all()
+
+    def center_score(self):
+        tweeter_ids = self.all_wumao_tweeter_id()
+        a1 = aliased(Friendship)
+        a2 = aliased(Friendship)
+        query_friend = self.session.query(
+            a1.follower_id.label('tweeter_id'),
+            func.count(a1.author_id).label('friend_count'),
+            literal(0).label('follower_count')).filter(
+                a1.author_id.in_(tweeter_ids),
+                a1.follower_id.in_(tweeter_ids)).group_by(a1.follower_id)
+        query_follower = self.session.query(
+            a2.author_id.label('tweeter_id'),
+            literal(0).label('friend_count'),
+            func.count(a2.follower_id).label('follower_count')).filter(
+                a2.author_id.in_(tweeter_ids),
+                a2.follower_id.in_(tweeter_ids)).group_by(a2.author_id)
+        sub_union = query_friend.union_all(query_follower).subquery()
+        sub_score = self.session.query(
+            sub_union.c.tweeter_id,
+            func.sum(sub_union.c.friend_count).label('friend_count'),
+            func.sum(sub_union.c.follower_count).label('follower_count'),
+            func.sum(sub_union.c.friend_count +
+                     sub_union.c.follower_count).label('score')).group_by(
+                         sub_union.c.tweeter_id).subquery()
+        return self.session.query(
+            Wumao.id, Wumao.tweeter_id, sub_score.c.score).join(
+                sub_score, Wumao.tweeter_id == sub_score.c.tweeter_id).all()
+
     @_commit
     def follow(self, tweeter_id: int, author_id: int) -> None:
         self.constrain_tweeter_exist(tweeter_id)
@@ -312,6 +370,16 @@ class Dao(metaclass=SingletonMeta):
         else:
             qry.update({Wumao.is_new: is_new})
 
+    @_commit
+    def refresh_wumao_score(self):
+        scores = self.center_score()
+        avg = sum(t.score for t in scores) / len(scores)
+        mappings = ({
+            'id': t.id,
+            'weight': round(t.score / avg, 2),
+        } for t in scores)
+        return self.session.bulk_update_mappings(Wumao, mappings)
+
     def any_track(self) -> Track:
         return self.session.query(Track).first()
 
@@ -345,3 +413,27 @@ class Dao(metaclass=SingletonMeta):
             self.session.add(Track(tweeter_id, method, cur))
         else:
             qry.update({Track.method: method, Track.cursor: cur})
+
+    def wumao_to_csv(self, weight: float = 1.0) -> None:
+        """export wumao account data to csv
+
+        :param weight: filter, lower bound of `Wumao`.weight, default 1.0
+        :return:
+        """
+        shutil.rmtree(Config.WUMAO_CSV, ignore_errors=True)
+        records = self.session.query(
+            Tweeter.user_id.label('ID'),
+            Tweeter.screen_name.label('Screen Name'),
+            Tweeter.name.label('Nick Name'),
+            Tweeter.description.label('Description'),
+            Tweeter.created_at.label('Creation Date'),
+            Tweeter.follower_count.label('#Follower'),
+            Tweeter.friend_count.label('#Following'),
+            Wumao.weight.label('Wumao Score')).join(
+                Wumao, Tweeter.id == Wumao.tweeter_id).filter(
+                    Wumao.weight >= weight).order_by(
+                        Wumao.weight.desc()).all()
+        with open(Config.WUMAO_CSV, 'w') as outfile:
+            csv_writer = csv.writer(outfile)
+            csv_writer.writerow(records[0].keys())
+            csv_writer.writerows(records)

@@ -64,10 +64,12 @@ class Wumao(Base):
                            unique=True,
                            index=True)
     is_new = sa.Column(sa.SmallInteger, default=0)
+    weight = sa.Column(sa.Float, default=1)
 
-    def __init__(self, tweeter_id: int, is_new: int = 0):
+    def __init__(self, tweeter_id: int, is_new: int = 0, weight: float = 1.0):
         self.tweeter_id = tweeter_id
         self.is_new = is_new
+        self.weight = weight
 
 
 class Track(Base):
