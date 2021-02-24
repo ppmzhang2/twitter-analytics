@@ -53,4 +53,5 @@ venv
 *.pid.lock
 
 .idea/
+.vscode/
 .DS_Store

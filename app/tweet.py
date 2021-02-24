@@ -1,9 +1,10 @@
 import datetime
 import time
 from functools import wraps
-from typing import Tuple, Any
+from typing import Any, List, Optional, Tuple
 
 import twitter
+from twitter.models import User
 
 from config import Config
 
@@ -54,7 +55,7 @@ class Tweet(metaclass=SingletonMeta):
                                access_token_secret=Config.ACCESS_TOKEN_SECRET)
 
     @staticmethod
-    def parse_date(timestamp):
+    def parse_date(timestamp: str) -> datetime.date:
         """parse tweet "created_at" timestamp string
 
         :param timestamp: "created_at" format string
@@ -66,11 +67,12 @@ class Tweet(metaclass=SingletonMeta):
     @_catcher((0, -1, []))
     def get_followers_paged(
             self,
-            user_id,
-            cursor=-1,
-            count=200,
-            skip_status=True,
-            include_user_entities=False) -> Tuple[int, int, list]:
+            user_id: int,
+            cursor: int = -1,
+            count: int = 200,
+            skip_status: bool = True,
+            include_user_entities: bool = False
+    ) -> Tuple[int, int, List[User]]:
         return self.api.GetFollowersPaged(
             user_id=user_id,
             cursor=cursor,
@@ -81,11 +83,12 @@ class Tweet(metaclass=SingletonMeta):
     @_catcher((0, -1, []))
     def get_following_paged(
             self,
-            user_id,
-            cursor=-1,
-            count=200,
-            skip_status=True,
-            include_user_entities=False) -> Tuple[int, int, list]:
+            user_id: int,
+            cursor: int = -1,
+            count: int = 200,
+            skip_status: bool = True,
+            include_user_entities: bool = False
+    ) -> Tuple[int, int, List[User]]:
         return self.api.GetFriendsPaged(
             user_id=user_id,
             cursor=cursor,
@@ -95,9 +98,9 @@ class Tweet(metaclass=SingletonMeta):
 
     @_catcher([])
     def get_followers(self,
-                      user_id,
-                      skip_status=True,
-                      include_user_entities=False) -> list:
+                      user_id: int,
+                      skip_status: bool = True,
+                      include_user_entities: bool = False) -> List[User]:
         """get followers via Tweet.get_followers_paged, maximum 200
 
         :param user_id:
@@ -110,9 +113,9 @@ class Tweet(metaclass=SingletonMeta):
 
     @_catcher([])
     def get_following(self,
-                      user_id,
+                      user_id: int,
                       skip_status=True,
-                      include_user_entities=False) -> list:
+                      include_user_entities=False) -> List[User]:
         """get followings via Tweet.get_following_paged, maximum 200
 
         :param user_id:
@@ -124,5 +127,5 @@ class Tweet(metaclass=SingletonMeta):
                                         include_user_entities)[2]
 
     @_catcher(None)
-    def get_user(self, user_id: int):
+    def get_user(self, user_id: int) -> Optional[User]:
         return self.api.GetUser(user_id=user_id)

@@ -1,4 +1,5 @@
 import sys
+from typing import Optional, List
 
 from app.saver import Saver
 
@@ -12,14 +13,19 @@ funcs = {
 }
 
 
-def request():
+def request() -> Optional[str]:
+    """get the input request string, which will be then mapped as key to get
+    main method
+
+    :return:
+    """
     try:
-        return args[0]
+        return str(args[0])
     except IndexError:
         return None
 
 
-def arg1():
+def arg1() -> Optional[int]:
     """get the 1sr argument to requested function
 
     :return:
@@ -30,7 +36,7 @@ def arg1():
         return None
 
 
-def args_int() -> list:
+def args_int() -> Optional[List[int]]:
     """get all arguments as seed user IDs
 
     :return:
@@ -41,7 +47,7 @@ def args_int() -> list:
         return None
 
 
-def main():
+def main() -> None:
     if request() is None:
         raise TypeError('expect at least one input')
 
@@ -55,7 +61,7 @@ def main():
         instance = cls()
         func(instance)
     elif n_args == -1 and args_int() is None:
-        raise ValueError('User IDs must be integers')
+        raise ValueError('User IDs must ALL be integers')
     elif n_args == -1:
         instance = cls()
         func(instance, *args_int())
