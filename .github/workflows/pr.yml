@@ -1,0 +1,33 @@
+name: Linting and Testing on Pull Request
+
+on: [pull_request]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          make install-pdm
+          make deploy-ci
+      - name: Analysing the code with pylint
+        run: |
+          make lint
+      - name: Test
+        run: |
+          rm -f db/app.db
+          make test
+      - name: "Upload coverage to Codecov"
+        uses: codecov/codecov-action@v2
+        with:
+          fail_ci_if_error: true

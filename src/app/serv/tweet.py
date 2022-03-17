@@ -1,12 +1,16 @@
+"""tweet logic"""
 import datetime
 import time
 from functools import wraps
-from typing import Any, List, Optional, Tuple
+from typing import Any
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 import twitter
 from twitter.models import User
 
-from config import Config
+from .. import cfg
 
 __all__ = ['Tweet']
 
@@ -18,7 +22,9 @@ def _catcher(default: Any):
     :param default: default value to return when error is caught
     :return:
     """
+
     def dec(fn):
+
         @wraps(fn)
         def helper(*args, **kwargs):
             try:
@@ -26,8 +32,7 @@ def _catcher(default: Any):
             except twitter.error.TwitterError as e:
                 if e.message == 'Not authorized.':
                     return default
-                else:
-                    raise e
+                raise e
 
             return res
 
@@ -37,6 +42,7 @@ def _catcher(default: Any):
 
 
 class SingletonMeta(type):
+    """singleton metaclass"""
     _instance = None
 
     def __call__(cls, *args, **kwargs):
@@ -46,13 +52,16 @@ class SingletonMeta(type):
 
 
 class Tweet(metaclass=SingletonMeta):
+    """tweet API class"""
     __slots__ = ['api']
 
     def __init__(self):
-        self.api = twitter.Api(consumer_key=Config.CONSUMER_KEY,
-                               consumer_secret=Config.CONSUMER_SECRET,
-                               access_token_key=Config.ACCESS_TOKEN,
-                               access_token_secret=Config.ACCESS_TOKEN_SECRET)
+        self.api = twitter.Api(
+            consumer_key=cfg.CONSUMER_KEY,
+            consumer_secret=cfg.CONSUMER_SECRET,
+            access_token_key=cfg.ACCESS_TOKEN,
+            access_token_secret=cfg.ACCESS_TOKEN_SECRET,
+        )
 
     @staticmethod
     def parse_date(timestamp: str) -> datetime.date:
@@ -66,13 +75,14 @@ class Tweet(metaclass=SingletonMeta):
 
     @_catcher((0, -1, []))
     def get_followers_paged(
-            self,
-            user_id: int,
-            cursor: int = -1,
-            count: int = 200,
-            skip_status: bool = True,
-            include_user_entities: bool = False
+        self,
+        user_id: int,
+        cursor: int = -1,
+        count: int = 200,
+        skip_status: bool = True,
+        include_user_entities: bool = False,
     ) -> Tuple[int, int, List[User]]:
+        """get followers paged"""
         return self.api.GetFollowersPaged(
             user_id=user_id,
             cursor=cursor,
@@ -82,13 +92,14 @@ class Tweet(metaclass=SingletonMeta):
 
     @_catcher((0, -1, []))
     def get_following_paged(
-            self,
-            user_id: int,
-            cursor: int = -1,
-            count: int = 200,
-            skip_status: bool = True,
-            include_user_entities: bool = False
+        self,
+        user_id: int,
+        cursor: int = -1,
+        count: int = 200,
+        skip_status: bool = True,
+        include_user_entities: bool = False,
     ) -> Tuple[int, int, List[User]]:
+        """get following paged"""
         return self.api.GetFriendsPaged(
             user_id=user_id,
             cursor=cursor,
@@ -128,4 +139,5 @@ class Tweet(metaclass=SingletonMeta):
 
     @_catcher(None)
     def get_user(self, user_id: int) -> Optional[User]:
+        """add user"""
         return self.api.GetUser(user_id=user_id)
