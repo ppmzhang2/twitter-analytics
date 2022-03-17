@@ -1,3 +1,4 @@
+"""tables"""
 from datetime import date
 
 import sqlalchemy as sa
@@ -7,6 +8,7 @@ from app.models.base import Base
 
 
 class Friendship(Base):
+    """following-ship"""
     __tablename__ = 'friendship'
 
     author_id = sa.Column(sa.Integer,
@@ -54,6 +56,7 @@ class Tweeter(Base):
 
 
 class Wumao(Base):
+    """wumao list"""
     __tablename__ = 'wumao'
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)

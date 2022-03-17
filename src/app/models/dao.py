@@ -1,28 +1,43 @@
+"""data access object"""
 import csv
 import shutil
 from datetime import datetime
 from functools import wraps
-from typing import Iterable, List, Optional, Set
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import Set
 
 import twitter
-from sqlalchemy import create_engine, func, literal, or_
-from sqlalchemy.orm import Session, aliased, sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy import func
+from sqlalchemy import literal
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import aliased
+from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
-from app.models.tables import Friendship, Track, Tweeter, Wumao
-from config import Config
+from app.models.tables import Friendship
+from app.models.tables import Track
+from app.models.tables import Tweeter
+from app.models.tables import Wumao
+
+from .. import cfg
 
 __all__ = ['Dao']
 
 
 def session_factory(echo: bool) -> Session:
-    engine = create_engine('sqlite:///{0}'.format(Config.APP_DB), echo=echo)
+    """session factory"""
+    engine = create_engine(f'sqlite:///{cfg.APP_DB}', echo=echo)
     _SessionFactory = sessionmaker(bind=engine)
     Base.metadata.create_all(engine)
     return _SessionFactory()
 
 
 def _commit(fn):
+
     @wraps(fn)
     def helper(*args, **kwargs):
         res = fn(*args, **kwargs)
@@ -33,6 +48,7 @@ def _commit(fn):
 
 
 class SingletonMeta(type):
+    """singleton metaclass"""
     _instance = None
 
     def __call__(cls, *args, **kwargs):
@@ -42,6 +58,8 @@ class SingletonMeta(type):
 
 
 class Dao(metaclass=SingletonMeta):
+    """DAO"""
+
     __slots__ = ['session']
 
     def __init__(self, echo=False):
@@ -93,6 +111,7 @@ class Dao(metaclass=SingletonMeta):
 
     @_commit
     def reset_db(self) -> None:
+        """reset DB"""
         self.session.query(Track).delete()
         self.session.query(Friendship).delete()
         self.session.query(Wumao).delete()
@@ -107,9 +126,11 @@ class Dao(metaclass=SingletonMeta):
         """
         self.session.bulk_save_objects(objects)
 
-    def bulk_save_tweeter(self,
-                          users: List[twitter.models.User],
-                          return_all: bool = False) -> Set[int]:
+    def bulk_save_tweeter(
+        self,
+        users: List[twitter.models.User],
+        return_all: bool = False,
+    ) -> Set[int]:
         """bulk save on table 'tweeter'
         refer to dao.bulk_save
 
@@ -131,8 +152,7 @@ class Dao(metaclass=SingletonMeta):
         self.bulk_save(new_tweeters)
         if return_all:
             return self.all_tweeter_id([u.id for u in users])
-        else:
-            return self.all_tweeter_id([u.user_id for u in new_tweeters])
+        return self.all_tweeter_id([u.user_id for u in new_tweeters])
 
     def lookup_tweeter(self, tweeter_id: int) -> Optional[Tweeter]:
         """get `Tweeter` instance by primary key
@@ -153,9 +173,8 @@ class Dao(metaclass=SingletonMeta):
         qry = self.session.query(Tweeter.id)
         if user_ids is None:
             return set(t[0] for t in qry.all())
-        else:
-            return set(
-                t[0] for t in qry.filter(Tweeter.user_id.in_(user_ids)).all())
+        return set(t[0]
+                   for t in qry.filter(Tweeter.user_id.in_(user_ids)).all())
 
     @_commit
     def delete_tweeter(self, tweeter_id: int) -> int:
@@ -171,27 +190,32 @@ class Dao(metaclass=SingletonMeta):
         return res
 
     def is_following(self, tweeter_id: int, author_id: int) -> bool:
+        """whether the tweeter is following the author or not"""
         friendship = self.session.query(Friendship).filter(
             Friendship.author_id == author_id,
             Friendship.follower_id == tweeter_id).first()
         if friendship is None:
             return False
-        else:
-            return True
+        return True
 
     def followers_id(self, tweeter_id: int) -> List[int]:
+        """followers' ID list"""
         connections = self.session.query(Friendship).filter(
             Friendship.author_id == tweeter_id).all()
         return [u.follower_id for u in connections]
 
     def friends_id(self, tweeter_id: int) -> List[int]:
+        """followings' ID list"""
         connections = self.session.query(Friendship).filter(
             Friendship.follower_id == tweeter_id).all()
         return [u.author_id for u in connections]
 
-    def follower_count(self,
-                       tweeter_id: int,
-                       follower_ids: Optional[List[int]] = None) -> int:
+    def follower_count(
+        self,
+        tweeter_id: int,
+        follower_ids: Optional[List[int]] = None,
+    ) -> int:
+        """followers count"""
         qry = self.session.query(func.count(Friendship.follower_id))
         if not follower_ids:
             res = qry.filter(Friendship.author_id == tweeter_id).first()
@@ -200,12 +224,14 @@ class Dao(metaclass=SingletonMeta):
                              Friendship.follower_id.in_(follower_ids)).first()
         if not res:
             return 0
-        else:
-            return res[0]
+        return res[0]
 
-    def friend_count(self,
-                     tweeter_id: int,
-                     author_ids: Optional[List[int]] = None) -> int:
+    def friend_count(
+        self,
+        tweeter_id: int,
+        author_ids: Optional[List[int]] = None,
+    ) -> int:
+        """followings count"""
         qry = self.session.query(func.count(Friendship.author_id))
         if not author_ids:
             res = qry.filter(Friendship.follower_id == tweeter_id).first()
@@ -214,8 +240,7 @@ class Dao(metaclass=SingletonMeta):
                              Friendship.author_id.in_(author_ids)).first()
         if not res:
             return 0
-        else:
-            return res[0]
+        return res[0]
 
     def score(self):
         """scoring a twitter account by measuring its wumao friends & followers
@@ -247,6 +272,7 @@ class Dao(metaclass=SingletonMeta):
                  sub_friend.c.follower_id == sub_follower.c.author_id).all()
 
     def center_score(self):
+        """center score"""
         a1 = aliased(Wumao)
         a2 = aliased(Wumao)
         query_friend = self.session.query(
@@ -277,6 +303,7 @@ class Dao(metaclass=SingletonMeta):
 
     @_commit
     def follow(self, tweeter_id: int, author_id: int) -> None:
+        """add following-ship"""
         self.constrain_tweeter_exist(tweeter_id)
         self.constrain_tweeter_exist(author_id)
         if not self.is_following(tweeter_id, author_id):
@@ -284,6 +311,7 @@ class Dao(metaclass=SingletonMeta):
 
     @_commit
     def un_follow(self, tweeter_id: int, author_id: int) -> None:
+        """revoke following-ship"""
         self.constrain_tweeter_exist(tweeter_id)
         self.constrain_tweeter_exist(author_id)
         if self.is_following(tweeter_id, author_id):
@@ -292,6 +320,7 @@ class Dao(metaclass=SingletonMeta):
                 Friendship.follower_id == tweeter_id).delete()
 
     def bulk_follow(self, tweeter_id: int, authors: List[int]) -> None:
+        """follow authors"""
         self.constrain_tweeter_exist(tweeter_id)
         for author in authors:
             self.constrain_tweeter_exist(author)
@@ -301,6 +330,7 @@ class Dao(metaclass=SingletonMeta):
         self.bulk_save((Friendship(i, tweeter_id) for i in new_authors))
 
     def bulk_attract(self, tweeter_id: int, followers: List[int]) -> None:
+        """add followers"""
         self.constrain_tweeter_exist(tweeter_id)
         for follower in followers:
             self.constrain_tweeter_exist(follower)
@@ -310,10 +340,12 @@ class Dao(metaclass=SingletonMeta):
         self.bulk_save((Friendship(tweeter_id, i) for i in new_followers))
 
     def any_wumao(self, new: bool = False) -> Optional[Wumao]:
+        """get a new wumao if exists"""
         is_new = self._is_new(new)
         return self.session.query(Wumao).filter(Wumao.is_new == is_new).first()
 
     def lookup_wumao(self, wumao_id: int) -> Optional[Wumao]:
+        """query wumao"""
         return self.session.query(Wumao).filter(Wumao.id == wumao_id).first()
 
     def bulk_save_wumao(self,
@@ -344,8 +376,7 @@ class Dao(metaclass=SingletonMeta):
         self.bulk_save(new_wumaos)
         if return_all:
             return self.all_wumao_id(tweeter_ids)
-        else:
-            return self.all_wumao_id([n.tweeter_id for n in new_wumaos])
+        return self.all_wumao_id([n.tweeter_id for n in new_wumaos])
 
     def all_wumao_id(self,
                      tweeter_ids: Optional[List[int]] = None) -> Set[int]:
@@ -357,16 +388,16 @@ class Dao(metaclass=SingletonMeta):
         qry = self.session.query(Wumao.id)
         if tweeter_ids is None:
             return set(t[0] for t in qry.all())
-        else:
-            return set(
-                t[0]
-                for t in qry.filter(Wumao.tweeter_id.in_(tweeter_ids)).all())
+        return set(
+            t[0] for t in qry.filter(Wumao.tweeter_id.in_(tweeter_ids)).all())
 
     def all_wumao_tweeter_id(self) -> Set[int]:
+        """get all wumao tweeters' ID"""
         return set(t[0] for t in self.session.query(Wumao.tweeter_id).all())
 
     @_commit
     def upsert_wumao(self, tweeter_id: int, new: bool):
+        """upsert a wumao"""
         self.constrain_tweeter_exist(tweeter_id)
         is_new = self._is_new(new)
         qry = self.session.query(Wumao).filter(Wumao.tweeter_id == tweeter_id)
@@ -377,6 +408,7 @@ class Dao(metaclass=SingletonMeta):
 
     @_commit
     def refresh_wumao_score(self):
+        """refresh wumao score"""
         scores = self.center_score()
         avg = sum(t.score for t in scores) / len(scores)
         mappings = ({
@@ -386,9 +418,11 @@ class Dao(metaclass=SingletonMeta):
         return self.session.bulk_update_mappings(Wumao, mappings)
 
     def any_track(self) -> Track:
+        """any track"""
         return self.session.query(Track).first()
 
     def lookup_track(self, tweeter_id: int) -> Track:
+        """lookup track"""
         return self.session.query(Track).filter(
             Track.tweeter_id == tweeter_id).first()
 
@@ -425,7 +459,7 @@ class Dao(metaclass=SingletonMeta):
         :param weight: filter, lower bound of `Wumao`.weight, default 1.0
         :return:
         """
-        shutil.rmtree(Config.WUMAO_CSV, ignore_errors=True)
+        shutil.rmtree(cfg.WUMAO_CSV, ignore_errors=True)
         records = self.session.query(
             Tweeter.user_id.label('ID'),
             Tweeter.screen_name.label('Screen Name'),
@@ -438,7 +472,7 @@ class Dao(metaclass=SingletonMeta):
                 Wumao, Tweeter.id == Wumao.tweeter_id).filter(
                     Wumao.weight >= weight).order_by(
                         Wumao.weight.desc()).all()
-        with open(Config.WUMAO_CSV, 'w') as outfile:
+        with open(cfg.WUMAO_CSV, mode='w', encoding='UTF-8') as outfile:
             csv_writer = csv.writer(outfile)
             csv_writer.writerow(records[0].keys())
             csv_writer.writerows(records)

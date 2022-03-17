@@ -1,3 +1,4 @@
+"""test models"""
 import unittest
 
 from twitter.models import User
@@ -7,6 +8,7 @@ from app.models.tables import Track
 
 
 class TestModel(unittest.TestCase):
+    """test model class"""
     dao = None
     USER_IDS = (12345678901, 12345678902, 12345678903, 12345678904,
                 12345678905)
@@ -138,8 +140,8 @@ class TestModel(unittest.TestCase):
 
         :return:
         """
-        tweeter_id_1, tweeter_id_2, tweeter_id_3, tweeter_id_4, tweeter_id_5 = (
-            u.id for u in self.tweeters)
+        (tweeter_id_1, tweeter_id_2, tweeter_id_3, tweeter_id_4,
+         tweeter_id_5) = (u.id for u in self.tweeters)
         self.dao.follow(tweeter_id_5, tweeter_id_1)
         self.dao.bulk_follow(tweeter_id_1, [tweeter_id_2, tweeter_id_3])
         self.dao.bulk_attract(tweeter_id_4, [tweeter_id_1])
@@ -177,8 +179,7 @@ class TestModel(unittest.TestCase):
 
         :return:
         """
-        tweeter_id_1, tweeter_id_2, tweeter_id_3, tweeter_id_4, tweeter_id_5 = (
-            u.id for u in self.tweeters)
+        _, _, tweeter_id_3, _, _ = (u.id for u in self.tweeters)
         old_wumao_1, old_wumao_2 = self.old_wumaos
         new_wumao_1, new_wumao_2 = self.new_wumaos
         self.assertEqual(set(self.old_wumao_tweeter_ids),

@@ -1,0 +1,116 @@
+[[tool.pdm.source]]
+name = "pypi"
+url = "https://pypi.org/simple/"
+verify_ssl = true
+
+[tool.pdm]
+includes = ["src"]
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest>=7.1.0",
+    "pytest-cov>=3.0.0",
+    "mypy>=0.941",
+    "yapf>=0.32.0",
+    "setuptools-git-versioning>=1.8.1",
+    "pylint>=2.12.2",
+]
+[build-system]
+requires = ["pdm-pep517"]
+build-backend = "pdm.pep517.api"
+
+[tool.setuptools-git-versioning]
+enabled = true
+template = "{tag}"
+dev_template = "{tag}.post{ccount}+{sha}"
+dirty_template = "{tag}.post{ccount}+{sha}.dirty"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "--cov src --cov-report xml:coverage.xml --cov-report term-missing"
+testpaths = [
+  "tests",
+]
+
+[tool.coverage.paths]
+source = [
+  "src/algo",
+]
+
+[tool.coverage.run]
+branch = true
+omit = [
+  "src/algo/proto/*",
+]
+source = [
+  "src/algo"
+]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+  # Have to re-enable the standard pragma
+  "pragma: no cover",
+  # Don't complain about missing debug-only code:
+  "def __repr__",
+  "if self.debug",
+  # Don't complain if tests don't hit defensive assertion code:
+  "raise AssertionError",
+  "raise NotImplementedError",
+  # Don't complain if non-runnable code isn't run:
+  "if 0:",
+  "if __name__ == .__main__.:",
+  # ignore pass and ...
+  "pass",
+  # "...",
+]
+
+[tool.mypy]
+files = [
+    'src/algo',
+]
+python_version = "3.9"
+ignore_missing_imports = true
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+line_length = 79
+force_single_line = true
+
+[project.scripts]
+tweeter-analyzer = "app.cli:cli"
+
+[project]
+name = "py-algorithm"
+version = "0"
+description = "a collection of algorithms"
+authors = [
+    {name = "ZHANG Meng", email = "ztz2000@gmail.com"},
+]
+dependencies = [
+    "python-twitter>=3.5",
+    "SQLAlchemy>=1.4.32",
+    "click>=8.0.4",
+]
+requires-python = ">=3.9,<3.11"
+license = {text = "Apache-2.0"}
+readme = "README.md"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+]
+
+[project.urls]
+homepage = "https://github.com/ppmzhang2/py-algorithm"
+
+[project.optional-dependencies]
+ipy = [
+    "jupyter>=1.0.0",
+]

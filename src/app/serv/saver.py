@@ -1,22 +1,29 @@
+"""record saver"""
+import logging
 import math
 import shutil
-from datetime import date, datetime
+from datetime import date
+from datetime import datetime
 from functools import wraps
 from time import sleep
+from typing import NoReturn
 from typing import Optional
 
 import requests
 import twitter.error
 from twitter.models import User
 
-from app.models.dao import Dao
-from app.tweet import Tweet
-from config import Config
+from .. import cfg
+from ..models.dao import Dao
+from .tweet import Tweet
+
+LOGGER = logging.getLogger(__name__)
 
 __all__ = ['Saver']
 
 
 def _sleep(fn):
+
     @wraps(fn)
     def helper(*args, **kwargs):
         while True:
@@ -27,16 +34,16 @@ def _sleep(fn):
                     requests.exceptions.ConnectionError) as e:
                 if isinstance(e, requests.exceptions.ConnectionError):
                     # sleep 5 min if connection reset by peer
-                    print("connection error, sleep...")
+                    LOGGER.info("connection error, sleep...")
                     sleep(300)
                 elif e.message == [{
                         'message': 'Rate limit exceeded',
                         'code': 88
                 }]:
                     # sleep 6 min if exceeds limit
-                    print('backup DB when exceeds limit')
-                    shutil.copyfile(Config.APP_DB, Config.BAK_DB)
-                    print("exceeds rate limit, sleep...")
+                    LOGGER.info('backup DB when exceeds limit')
+                    shutil.copyfile(cfg.APP_DB, cfg.BAK_DB)
+                    LOGGER.info("exceeds rate limit, sleep...")
                     sleep(360)
                 else:
                     # else raise error
@@ -47,6 +54,7 @@ def _sleep(fn):
 
 
 class SingletonMeta(type):
+    """singleton meta class"""
     _instance = None
 
     def __call__(cls, *args, **kwargs):
@@ -56,6 +64,7 @@ class SingletonMeta(type):
 
 
 class Saver(metaclass=SingletonMeta):
+    """dao / tweet wrapper to save records"""
     __slots__ = ['dao', 'tweet']
 
     def __init__(self):
@@ -65,15 +74,18 @@ class Saver(metaclass=SingletonMeta):
     PAGE_COUNT = 200
 
     def reset(self):
-        shutil.rmtree(Config.APP_DB, ignore_errors=True)
+        """reset state"""
+        shutil.rmtree(cfg.APP_DB, ignore_errors=True)
         self.dao.reset_db()
 
     def seeds(self, *args: int):
+        """add seeds"""
         seed_users = [self.tweet.get_user(i) for i in args]
         tweeter_ids = self.dao.bulk_save_tweeter(seed_users)
         self.dao.bulk_save_wumao(list(tweeter_ids), new=True)
 
     def export(self):
+        """export to csv"""
         self.dao.wumao_to_csv()
 
     @staticmethod
@@ -83,6 +95,7 @@ class Saver(metaclass=SingletonMeta):
         :param user: a twitter.models.User object
         :return:
         """
+
         def _parse_date(timestamp):
             """parse tweet "created_at" timestamp string
 
@@ -94,12 +107,11 @@ class Saver(metaclass=SingletonMeta):
 
         if user.protected:
             return False
-        elif _parse_date(user.created_at) < date(2011, 1, 1):
+        if _parse_date(user.created_at) < date(2011, 1, 1):
             return False
-        elif user.followers_count > 5000:
+        if user.followers_count > 5000:
             return False
-        else:
-            return True
+        return True
 
     @staticmethod
     def _next_func_name(fn_name: str = None) -> Optional[str]:
@@ -110,12 +122,11 @@ class Saver(metaclass=SingletonMeta):
         """
         if not fn_name:
             return 'get_following_paged'
-        elif fn_name == 'get_following_paged':
+        if fn_name == 'get_following_paged':
             return 'get_followers_paged'
-        elif fn_name == 'get_followers_paged':
+        if fn_name == 'get_followers_paged':
             return None
-        else:
-            raise ValueError('invalid function name')
+        raise ValueError('invalid function name')
 
     def _search_params(self, tweeter_id):
         """return parameters for twitter friends & followers searching
@@ -123,6 +134,7 @@ class Saver(metaclass=SingletonMeta):
         :param tweeter_id: 'tweeter' primary key
         :return: tuple of user_id, cursor, paged function, is followers flag
         """
+
         def _is_follower(fn_name: str):
             """check if the function returns a follower list
 
@@ -131,8 +143,7 @@ class Saver(metaclass=SingletonMeta):
             """
             if fn_name == 'get_followers_paged':
                 return True
-            else:
-                return False
+            return False
 
         # raise exception if ID not exist
         self.dao.constrain_tweeter_exist(tweeter_id)
@@ -151,7 +162,7 @@ class Saver(metaclass=SingletonMeta):
         wumaos = [u for u in seq if self._is_potential_wumao(u)]
         # save to 'tweeter'
         wumao_tweeter_ids = self.dao.bulk_save_tweeter(wumaos, return_all=True)
-        print("#Wumao:", len(wumaos))
+        LOGGER.info(f"#Wumao: {len(wumaos)}")
         # save to friendship
         if followers:
             self.dao.bulk_attract(tweeter_id, wumao_tweeter_ids)
@@ -167,12 +178,14 @@ class Saver(metaclass=SingletonMeta):
         """
         user_id, cursor, paged_method, is_followers = self._search_params(
             tweeter_id)
-        print("start saving {0} from cursor {1}".format(
-            paged_method.__name__, cursor))
-        next_cursor, old_cursor, seq = paged_method(self.tweet,
-                                                    user_id=user_id,
-                                                    cursor=cursor,
-                                                    count=self.PAGE_COUNT)
+        LOGGER.info(
+            f"start saving {paged_method.__name__} from cursor {cursor}")
+        next_cursor, _, seq = paged_method(
+            self.tweet,
+            user_id=user_id,
+            cursor=cursor,
+            count=self.PAGE_COUNT,
+        )
 
         self._save_db(tweeter_id, seq, is_followers)
 
@@ -183,10 +196,9 @@ class Saver(metaclass=SingletonMeta):
                 paged_method.__name__) is None:
             self.dao.upsert_wumao(tweeter_id, False)
             self.dao.delete_track(tweeter_id)
-            print("friendship saving for {} completed".format(tweeter_id))
-            return
+            LOGGER.info("friendship saving for {tweeter_id} completed")
         # search with next paged function
-        elif next_cursor == 0:
+        if next_cursor == 0:
             next_func_name = self._next_func_name(paged_method.__name__)
             real_next_cursor = -1
         # search with the same function but next cursor
@@ -197,7 +209,8 @@ class Saver(metaclass=SingletonMeta):
         self.dao.upsert_track(tweeter_id, next_func_name, real_next_cursor)
         return self._add_friendship(tweeter_id)
 
-    def add_friendship(self):
+    def add_friendship(self) -> NoReturn:
+        """add friendship"""
         while True:
             last_search = self.dao.any_track()
             if last_search is not None:
@@ -206,11 +219,9 @@ class Saver(metaclass=SingletonMeta):
                 wumao = self.dao.any_wumao(True)
                 if wumao is None:
                     break
-                else:
-                    print('searching account: ', wumao.tweeter_id)
-                    self._add_friendship(wumao.tweeter_id)
-        print('all friendship of new wumaos has been added')
-        return
+                LOGGER.info(f'searching account: {wumao.tweeter_id}')
+                self._add_friendship(wumao.tweeter_id)
+        LOGGER.info('all friendship of new wumaos has been added')
 
     def enlist_wumao(self, lower_bound: float = 0) -> int:
         """save to wumao list tweeters with the highest wumao score, if the
@@ -232,13 +243,13 @@ class Saver(metaclass=SingletonMeta):
             new_wumao_tweeter_ids = [
                 r.tweeter_id for r in score_card if r.score >= max_score
             ]
-            print('tweeter IDs to save: {}'.format(new_wumao_tweeter_ids))
+            LOGGER.info(f'tweeter IDs to save: {new_wumao_tweeter_ids}')
             self.dao.bulk_save_wumao(new_wumao_tweeter_ids, new=True)
             # refresh weight after adding new wumaos
             self.dao.refresh_wumao_score()
         return max_score
 
-    def automaton(self):
+    def automaton(self) -> NoReturn:
         """full-auto wumao searching
         finish if no wumao is enlisted after an adding friendship process
 
@@ -252,9 +263,8 @@ class Saver(metaclass=SingletonMeta):
             threshold = len(self.dao.all_wumao_tweeter_id()) / 2
             self.add_friendship()
             new_max_score = self.enlist_wumao(threshold)
-            print('current maximum score: {}'.format(threshold))
+            LOGGER.info(f'current maximum score: {threshold}')
             if new_max_score < threshold:
                 break
-        print('all wumaos are found, job done! last max score: {}'.format(
-            threshold))
-        return
+        LOGGER.info(
+            f'all wumaos are found, job done! last max score: {threshold}')
