@@ -11,17 +11,6 @@ rootdir = os.path.abspath(os.path.join(srcdir, os.pardir))
 class Config:
     # pylint: disable=too-few-public-methods
     """default config"""
-    # credentials
-    CONSUMER_KEY = ''
-    CONSUMER_SECRET = ''
-    ACCESS_TOKEN = ''
-    ACCESS_TOKEN_SECRET = ''
-    # path
-    DB_DIR = ''.join([rootdir, '/db'])
-    APP_DB = ''.join([DB_DIR, '/app.db'])
-    BAK_DB = ''.join([DB_DIR, '/app.db.bak'])
-    WUMAO_CSV = ''.join([DB_DIR, '/wumao.csv'])
-
     # logging
     LOG_LEVEL = "WARNING"
     LOG_LINE_FORMAT = "%(asctime)s %(levelname)-5s %(threadName)s: %(message)s"

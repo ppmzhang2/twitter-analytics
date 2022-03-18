@@ -4,7 +4,7 @@ A "wumao" on twitter is not necessarily an employee of China's "grand external p
 
 ## Testing
 
-Tested on PyPy 3.6.9 and CPython 3.8.0.
+Tested on CPython 3.9.10.
 
 ## How it works
 
@@ -13,10 +13,20 @@ To make it simple and intuitive to operate without having to crawling huge amoun
 ## Usage
 
 1. Get twitter application tokens via [guide](https://python-twitter.readthedocs.io/en/latest/getting_started.html) of `python-twitter`, and change the configuration file `config.py` accordingly.
+2. Add parameters such as token and project folder:
+
+    ```sh
+    tweeter-analyzer update-params --consumer-key YOUR_CONSUMER_KEY \
+      --consumer-secret YOUR_CONSUMER_SECRET \
+      --access-token YOUR_ACCESS_TOKEN \
+      --access-token-secret YOUR_ACCESS_TOKEN_SECRET \
+      --project-path YOUR_PROJECT_FOLDER_PATH
+    ```
+
 2. Initialize DB:
 
     ```sh
-    python -m app reset
+    tweeter-analyzer reset
     ```
 
 3. Adding wumao seed accounts via account ID (not screen name):
@@ -25,19 +35,19 @@ To make it simple and intuitive to operate without having to crawling huge amoun
     # e.g. adding accounts of People's Daily and Hu Xijin
     # usually it is not a good idea to add verified accounts as seed since their
     # followers are massive and the finder will lose direction ...
-    python -m app seeds 1531801543 2775998016
+    tweeter-analyzer add-seed --seed 1531801543 --seed 2775998016
     ```
 
 4. Automatically adding new wumao accounts:
 
     ```sh
-    python -m app fullauto
+    tweeter-analyzer calculate
     ```
 
 5. Save wumao list to root as `wumao.csv`:
 
     ```sh
-    python -m app export
+    tweeter-analyzer export --csv-path THE_OUTPUT_CSV_PATH
     ```
 
 ## Examples

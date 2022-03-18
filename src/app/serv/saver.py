@@ -1,6 +1,7 @@
 """record saver"""
 import logging
 import math
+import os
 import shutil
 from datetime import date
 from datetime import datetime
@@ -13,8 +14,8 @@ import requests
 import twitter.error
 from twitter.models import User
 
-from .. import cfg
 from ..models.dao import Dao
+from ..singleton import SingletonMeta
 from .tweet import Tweet
 
 LOGGER = logging.getLogger(__name__)
@@ -41,8 +42,6 @@ def _sleep(fn):
                         'code': 88
                 }]:
                     # sleep 6 min if exceeds limit
-                    LOGGER.info('backup DB when exceeds limit')
-                    shutil.copyfile(cfg.APP_DB, cfg.BAK_DB)
                     LOGGER.info("exceeds rate limit, sleep...")
                     sleep(360)
                 else:
@@ -53,29 +52,57 @@ def _sleep(fn):
     return helper
 
 
-class SingletonMeta(type):
-    """singleton meta class"""
-    _instance = None
-
-    def __call__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(SingletonMeta, cls).__call__(*args, **kwargs)
-        return cls._instance
-
-
 class Saver(metaclass=SingletonMeta):
     """dao / tweet wrapper to save records"""
     __slots__ = ['dao', 'tweet']
 
-    def __init__(self):
-        self.dao = Dao()
-        self.tweet = Tweet()
-
     PAGE_COUNT = 200
+    CONSUMER_KEY = ''
+    CONSUMER_SECRET = ''
+    ACCESS_TOKEN = ''
+    ACCESS_TOKEN_SECRET = ''
+    PROJECT_DIR = ''
+    _APP_DB = 'app.db'
+    _BAK_DB = 'app.db.bak'
+
+    def __init__(self):
+        self.dao = Dao(self.app_db())
+        self.tweet = Tweet(
+            self.CONSUMER_KEY,
+            self.CONSUMER_SECRET,
+            self.ACCESS_TOKEN,
+            self.ACCESS_TOKEN_SECRET,
+        )
+
+    @classmethod
+    def app_db(cls):
+        """sqlite database path"""
+        return os.path.join(cls.PROJECT_DIR, cls._APP_DB)
+
+    @classmethod
+    def bak_db(cls):
+        """backup database path"""
+        return os.path.join(cls.PROJECT_DIR, cls._BAK_DB)
+
+    @classmethod
+    def update_params(
+        cls,
+        consumer_key: str,
+        consumer_secret: str,
+        access_token: str,
+        access_token_secret: str,
+        project_path: str,
+    ) -> NoReturn:
+        """update token and secret"""
+        cls.CONSUMER_KEY = consumer_key
+        cls.CONSUMER_SECRET = consumer_secret
+        cls.ACCESS_TOKEN = access_token
+        cls.ACCESS_TOKEN_SECRET = access_token_secret
+        cls.PROJECT_DIR = project_path
 
     def reset(self):
         """reset state"""
-        shutil.rmtree(cfg.APP_DB, ignore_errors=True)
+        shutil.rmtree(self.app_db(), ignore_errors=True)
         self.dao.reset_db()
 
     def seeds(self, *args: int):
@@ -84,9 +111,9 @@ class Saver(metaclass=SingletonMeta):
         tweeter_ids = self.dao.bulk_save_tweeter(seed_users)
         self.dao.bulk_save_wumao(list(tweeter_ids), new=True)
 
-    def export(self):
+    def export(self, csv_path: str):
         """export to csv"""
-        self.dao.wumao_to_csv()
+        self.dao.wumao_to_csv(csv_path)
 
     @staticmethod
     def _is_potential_wumao(user: User) -> bool:
@@ -249,8 +276,8 @@ class Saver(metaclass=SingletonMeta):
             self.dao.refresh_wumao_score()
         return max_score
 
-    def automaton(self) -> NoReturn:
-        """full-auto wumao searching
+    def search(self) -> NoReturn:
+        """wumao calculation and searching
         finish if no wumao is enlisted after an adding friendship process
 
         :local threshold:

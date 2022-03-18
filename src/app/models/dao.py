@@ -5,6 +5,7 @@ from datetime import datetime
 from functools import wraps
 from typing import Iterable
 from typing import List
+from typing import NoReturn
 from typing import Optional
 from typing import Set
 
@@ -17,20 +18,19 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm import aliased
 from sqlalchemy.orm import sessionmaker
 
-from app.models.base import Base
-from app.models.tables import Friendship
-from app.models.tables import Track
-from app.models.tables import Tweeter
-from app.models.tables import Wumao
-
-from .. import cfg
+from ..singleton import SingletonMeta
+from .base import Base
+from .tables import Friendship
+from .tables import Track
+from .tables import Tweeter
+from .tables import Wumao
 
 __all__ = ['Dao']
 
 
-def session_factory(echo: bool) -> Session:
+def session_factory(sqlite_db: str, echo: bool) -> Session:
     """session factory"""
-    engine = create_engine(f'sqlite:///{cfg.APP_DB}', echo=echo)
+    engine = create_engine(f'sqlite:///{sqlite_db}', echo=echo)
     _SessionFactory = sessionmaker(bind=engine)
     Base.metadata.create_all(engine)
     return _SessionFactory()
@@ -47,23 +47,13 @@ def _commit(fn):
     return helper
 
 
-class SingletonMeta(type):
-    """singleton metaclass"""
-    _instance = None
-
-    def __call__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(SingletonMeta, cls).__call__(*args, **kwargs)
-        return cls._instance
-
-
 class Dao(metaclass=SingletonMeta):
     """DAO"""
 
     __slots__ = ['session']
 
-    def __init__(self, echo=False):
-        self.session: Session = session_factory(echo)
+    def __init__(self, sqlite_db: str, echo=False):
+        self.session: Session = session_factory(sqlite_db, echo)
 
     @staticmethod
     def _is_new(flag: bool):
@@ -99,7 +89,7 @@ class Dao(metaclass=SingletonMeta):
         self.session.query(Track).filter(
             Track.tweeter_id == tweeter_id).delete()
 
-    def constrain_tweeter_exist(self, tweeter_id: int) -> None:
+    def constrain_tweeter_exist(self, tweeter_id: int) -> NoReturn:
         """check provided primary key of table 'tweeter', and raise value error
         if the PK_ID does NOT exist
 
@@ -110,7 +100,7 @@ class Dao(metaclass=SingletonMeta):
             raise ValueError('PK ID provided does NOT Exist!')
 
     @_commit
-    def reset_db(self) -> None:
+    def reset_db(self) -> NoReturn:
         """reset DB"""
         self.session.query(Track).delete()
         self.session.query(Friendship).delete()
@@ -118,7 +108,7 @@ class Dao(metaclass=SingletonMeta):
         self.session.query(Tweeter).delete()
 
     @_commit
-    def bulk_save(self, objects: Iterable) -> None:
+    def bulk_save(self, objects: Iterable) -> NoReturn:
         """Perform a bulk save of the given sequence of objects
 
         :param objects: a sequence of mapped object instances
@@ -302,7 +292,7 @@ class Dao(metaclass=SingletonMeta):
                 sub_score, Wumao.tweeter_id == sub_score.c.tweeter_id).all()
 
     @_commit
-    def follow(self, tweeter_id: int, author_id: int) -> None:
+    def follow(self, tweeter_id: int, author_id: int) -> NoReturn:
         """add following-ship"""
         self.constrain_tweeter_exist(tweeter_id)
         self.constrain_tweeter_exist(author_id)
@@ -310,7 +300,7 @@ class Dao(metaclass=SingletonMeta):
             self.session.add(Friendship(author_id, tweeter_id))
 
     @_commit
-    def un_follow(self, tweeter_id: int, author_id: int) -> None:
+    def un_follow(self, tweeter_id: int, author_id: int) -> NoReturn:
         """revoke following-ship"""
         self.constrain_tweeter_exist(tweeter_id)
         self.constrain_tweeter_exist(author_id)
@@ -319,7 +309,7 @@ class Dao(metaclass=SingletonMeta):
                 Friendship.author_id == author_id,
                 Friendship.follower_id == tweeter_id).delete()
 
-    def bulk_follow(self, tweeter_id: int, authors: List[int]) -> None:
+    def bulk_follow(self, tweeter_id: int, authors: List[int]) -> NoReturn:
         """follow authors"""
         self.constrain_tweeter_exist(tweeter_id)
         for author in authors:
@@ -329,7 +319,7 @@ class Dao(metaclass=SingletonMeta):
         ]
         self.bulk_save((Friendship(i, tweeter_id) for i in new_authors))
 
-    def bulk_attract(self, tweeter_id: int, followers: List[int]) -> None:
+    def bulk_attract(self, tweeter_id: int, followers: List[int]) -> NoReturn:
         """add followers"""
         self.constrain_tweeter_exist(tweeter_id)
         for follower in followers:
@@ -438,7 +428,7 @@ class Dao(metaclass=SingletonMeta):
             Track.tweeter_id == tweeter_id).delete()
 
     @_commit
-    def upsert_track(self, tweeter_id: int, method: str, cur: int) -> None:
+    def upsert_track(self, tweeter_id: int, method: str, cur: int) -> NoReturn:
         """update or insert 'track' with latest cursor
 
         :param tweeter_id: 'tweeter' primary key
@@ -453,13 +443,13 @@ class Dao(metaclass=SingletonMeta):
         else:
             qry.update({Track.method: method, Track.cursor: cur})
 
-    def wumao_to_csv(self, weight: float = 1.0) -> None:
+    def wumao_to_csv(self, csv_path: str, weight: float = 1.0) -> NoReturn:
         """export wumao account data to csv
 
         :param weight: filter, lower bound of `Wumao`.weight, default 1.0
         :return:
         """
-        shutil.rmtree(cfg.WUMAO_CSV, ignore_errors=True)
+        shutil.rmtree(csv_path, ignore_errors=True)
         records = self.session.query(
             Tweeter.user_id.label('ID'),
             Tweeter.screen_name.label('Screen Name'),
@@ -472,7 +462,7 @@ class Dao(metaclass=SingletonMeta):
                 Wumao, Tweeter.id == Wumao.tweeter_id).filter(
                     Wumao.weight >= weight).order_by(
                         Wumao.weight.desc()).all()
-        with open(cfg.WUMAO_CSV, mode='w', encoding='UTF-8') as outfile:
+        with open(csv_path, mode='w', encoding='UTF-8') as outfile:
             csv_writer = csv.writer(outfile)
             csv_writer.writerow(records[0].keys())
             csv_writer.writerows(records)

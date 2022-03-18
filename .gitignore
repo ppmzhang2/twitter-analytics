@@ -19,3 +19,5 @@ coverage.xml
 
 __pypackages__/
 .pdm.toml
+
+*.db

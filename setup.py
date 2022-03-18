@@ -23,9 +23,9 @@ ENTRY_POINTS = {
 }
 
 setup_kwargs = {
-    'name': 'py-algorithm',
+    'name': 'twitter-analyzer',
     'version': '0',
-    'description': 'a collection of algorithms',
+    'description': 'twitter follower analyzer',
     'long_description': long_description,
     'license': 'Apache-2.0',
     'author': '',

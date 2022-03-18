@@ -4,7 +4,7 @@ from datetime import date
 import sqlalchemy as sa
 from sqlalchemy import ForeignKey
 
-from app.models.base import Base
+from .base import Base
 
 
 class Friendship(Base):
