@@ -10,7 +10,7 @@ from typing import Tuple
 import twitter
 from twitter.models import User
 
-from .. import cfg
+from ..singleton import SingletonMeta
 
 __all__ = ['Tweet']
 
@@ -41,26 +41,22 @@ def _catcher(default: Any):
     return dec
 
 
-class SingletonMeta(type):
-    """singleton metaclass"""
-    _instance = None
-
-    def __call__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(SingletonMeta, cls).__call__(*args, **kwargs)
-        return cls._instance
-
-
 class Tweet(metaclass=SingletonMeta):
     """tweet API class"""
     __slots__ = ['api']
 
-    def __init__(self):
+    def __init__(
+        self,
+        consumer_key: str,
+        consumer_secret: str,
+        access_token: str,
+        access_token_secret: str,
+    ):
         self.api = twitter.Api(
-            consumer_key=cfg.CONSUMER_KEY,
-            consumer_secret=cfg.CONSUMER_SECRET,
-            access_token_key=cfg.ACCESS_TOKEN,
-            access_token_secret=cfg.ACCESS_TOKEN_SECRET,
+            consumer_key=consumer_key,
+            consumer_secret=consumer_secret,
+            access_token_key=access_token,
+            access_token_secret=access_token_secret,
         )
 
     @staticmethod
